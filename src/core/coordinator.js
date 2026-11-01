@@ -98,10 +98,12 @@ export function createCoordinator({ clock, adapters = {}, delayFor = () => 0, co
         transition(record, State.STARTING);
         const context = Object.freeze({ task: record.task, generation: token.generation, signal: token.abort.signal,
           done: () => done(token), fail: reason => fail(token, reason),
+          isCurrent: () => tokenValid(token), now,
+          cancelScheduled(key) { return scheduler.cancel(`${token.generation}:task:${record.key}:${key}`); },
           schedule({ key, delay, execute }) {
-            if (!tokenValid(token) || record.state !== State.RUNNING) return false;
+            if (!tokenValid(token) || ![State.STARTING, State.RUNNING].includes(record.state)) return false;
             return scheduler.request({ key: `${token.generation}:task:${record.key}:${key}`, delay,
-              validate: () => tokenValid(token) && record.state === State.RUNNING,
+              validate: () => tokenValid(token) && [State.STARTING, State.RUNNING].includes(record.state),
               execute, onInvalid: () => { if (active === token) invalidate('context-invalidated'); },
               onError: () => fail(token, 'adapter-action-failed') });
           } });
@@ -111,6 +113,7 @@ export function createCoordinator({ clock, adapters = {}, delayFor = () => 0, co
             if (active === token) invalidate('context-invalidated'); return;
           }
           token.handle = handle; transition(record, State.RUNNING); diagnostic = 'running';
+          handle?.activate?.(); // Buffered media results may be delivered only after startup succeeds.
         }, () => fail(token, 'adapter-start-rejected'));
       }
     });
@@ -143,7 +146,38 @@ export function createCoordinator({ clock, adapters = {}, delayFor = () => 0, co
       }
     });
   }
-  return Object.freeze({ bind, startNext, snapshot: view, queueNavigation,
+  // A missing inner player may appear inside an already uniquely owned attachment.
+  // Never adopt changed owners, catalogs or lessons while waiting for readiness.
+  function waitForMedia(readSnapshot) {
+    if (active || navigation || stopped || destroyed || !inventory || inventory.status !== 'loading' ||
+      inventory.hazards.some(reason => reason !== 'loading-player') || !inventory.tasks.length) return false;
+    const initial = inventory, expected = generation, deadline = now() + 5000;
+    let count = 0;
+    function check() {
+      const next = readSnapshot(), fresh = inspectInventory(next);
+      const same = fresh.pageURL === initial.pageURL && fresh.courseKey === initial.courseKey && fresh.lesson?.key === initial.lesson.key &&
+        fresh.catalog.length === initial.catalog.length && fresh.catalog.every((item, i) => item.node === initial.catalog[i].node && item.key === initial.catalog[i].key &&
+          item.title === initial.catalog[i].title && item.chapterKey === initial.catalog[i].chapterKey && item.restricted === initial.catalog[i].restricted) &&
+        initial.documents.every(doc => fresh.documents.includes(doc)) &&
+        fresh.tasks.length === initial.tasks.length && fresh.tasks.every((task, i) => {
+          const old = initial.tasks[i];
+          return task.key === old.key && task.owner === old.owner && task.path.length === old.path.length && task.path.every((node, n) => node === old.path[n]) &&
+            (!old.player || task.player === old.player && task.source === old.source && task.declaredSource === old.declaredSource);
+        });
+      if (!same || fresh.hazards.some(reason => reason !== 'loading-player')) { invalidate('readiness-context-changed'); return; }
+      if (fresh.valid) { bind(next); startNext(); return; }
+      if (now() >= deadline) { diagnostic = 'media-readiness-timeout'; return; }
+      poll();
+    }
+    function poll() {
+      scheduler.request({ key: `${expected}:readiness:${++count}`, delay: Math.min(100, deadline - now()),
+        validate: () => generation === expected && !stopped && !destroyed && inventory === initial,
+        execute: check, onError: () => invalidate('readiness-failed') });
+    }
+    if (scheduler.snapshot().some(action => action.key.startsWith(`${expected}:readiness:`))) return false;
+    poll(); return true;
+  }
+  return Object.freeze({ bind, startNext, waitForMedia, snapshot: view, queueNavigation,
     navigationDecision: mode => gate.issue(mode),
     stop() { if (!destroyed) { stopped = true; invalidate('explicit-stop', true); } },
     contextChanged() { if (!destroyed) invalidate('context-changed'); },

@@ -9,11 +9,10 @@
   If identity, branch, baseline or canonical paths disagree, stop and report.
 - Read `docs/HANDOFF.md`, `docs/MASTER_PLAN.md` and the relevant feature rows first.
   HANDOFF is the authoritative resumption entry point; recheck its Git claims.
-- Phase I is accepted at `dc3232040fa4df30ae58eeb08ebc102f2b06942e`.
-  Current authorization covers Phase II, Steps 03 and 04 together, with Step 03
-  internal tests passing before Step 04 integration. Stop after Phase II delivery;
-  Phase III requires ChatGPT acceptance and new explicit user authorization.
-  Do not invent phases or steps beyond the fixed five phases and ten steps.
+- Phase II is accepted at `2428489a83d147542b6e318d0bcaeaa6b9766b01`.
+  Current authorization covers Phase III, Steps 05 and 06, in one delivery.
+  Stop after that delivery; Phase IV requires independent ChatGPT acceptance and
+  new explicit authorization. Preserve the fixed five-phase / ten-step plan.
 - Stop an affected portion when a protected decision must change. Report the
   concrete dependency for ChatGPT; do not silently alter the contract.
 
@@ -53,9 +52,9 @@
   do not establish real compatibility. Report PARTIAL/FAIL when warranted.
 - Reuse focused tests. Add meaningful regression cases, not combinatorial coverage
   for its own sake. Keep failures visible and explain approved expectation changes.
-- Phase II permits independent ES modules, Node tests, jsdom as dev-only dependency,
-  and simulated runtime boundaries. No real playback, scrolling, popup/catalog
-  actions, settings UI, full pacing, build packaging or installable is authorized.
+- Phase III permits independently written native video/audio adapters, shared
+  bounded recovery, minimal core integration and controlled browser tests. No
+  documents/live automation, native navigation, settings/rest UI or installable.
   Future build/installable paths require an approved canonical-file contract.
 - Update HANDOFF after each authorized delivery: phase, acceptance, baseline,
   deliverables, blockers, tests, protected decisions and next authorization.

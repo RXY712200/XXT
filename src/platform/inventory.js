@@ -7,7 +7,10 @@ const owned = (node, selector, boundary) => all(node, selector).filter(el => el.
 const text = node => (node?.getAttribute('title') || node?.textContent || '').trim();
 const preview = el => ['auditionAudio', 'audio1_html5_white'].includes(el.id) && el.paused && !el.seeking && !el.autoplay;
 const active = el => (!el.paused && !el.ended) || el.seeking;
-const source = el => el.currentSrc || el.getAttribute('src') || '';
+const source = el => {
+  const value = el.currentSrc || el.getAttribute('src') || '';
+  try { return value ? new URL(value, el.baseURI).href : ''; } catch { return value; }
+};
 
 function keyOf(node, within) {
   const value = node.getAttribute('data-id') || node.id;
@@ -110,10 +113,12 @@ function read(document) {
     if (resolution === 'loading') hazards.push('loading-player');
     tasks.push(Object.freeze({ key, ownerKey: ownerId ? String(ownerId) : null, identity: key ? 'verified' : 'ambiguous',
       lessonKey: lesson?.key || null, ordinal, kind, owner, path: Object.freeze([...(primary.length === 1 ? mediaPaths.get(primary[0]) || path : path)]), player: primary.length === 1 ? primary[0] : null,
+      source: primary.length === 1 ? source(primary[0]) : null,
+      declaredSource: primary.length === 1 ? primary[0].getAttribute('src') : null,
       resolution, capability: kind === 'unknown' || kind === 'assessment' ? 'unsupported' : 'adapter-required', executable: false,
       evidence: Object.freeze([evidence(key, 'recognition', Credit.UNKNOWN, kind === 'unknown' ? 'independent-unknown-boundary' : 'native-structure')]), credit: observed }));
     structure.push(owner, owner.className, owner.id, owner.getAttribute('data'), owner.getAttribute('src'), key);
-    for (const el of media) structure.push(el, source(el));
+    for (const el of media) structure.push(el, source(el), el.getAttribute('src'));
   }
   function visit(el, path, media) {
     if (el.matches('.ans-attach-online') && !path.some(node => node.matches?.('.ans-attach-online'))) {
@@ -162,7 +167,7 @@ function read(document) {
   for (const item of catalog) structure.push(item.node, item.key, item.title, item.chapterKey, ...item.ancestry, item.restricted);
   const unique = [...new Set(hazards)];
   const status = unique.some(reason => !reason.startsWith('loading-')) ? 'unsafe' : unique.length ? 'loading' : 'verified';
-  return { status, observedAt: Date.now(), hazards: Object.freeze(unique), supported, courseKey, lesson, assessment, catalog: Object.freeze(catalog),
+  return { status, pageURL: document.URL, observedAt: Date.now(), hazards: Object.freeze(unique), supported, courseKey, lesson, assessment, catalog: Object.freeze(catalog),
     chapters: Object.freeze(chapters), tasks: Object.freeze(tasks), documents: Object.freeze(documents), structure };
 }
 

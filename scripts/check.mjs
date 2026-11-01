@@ -17,7 +17,8 @@ for (const file of production) {
     assert.ok(specifier.startsWith('.'), `No runtime external dependency: ${relative(root, file)}`);
     assert.ok(!relative(resolve(root, 'src'), resolve(dirname(file), specifier)).startsWith('..'), 'No external reference-repository imports');
   }
-  assert.ok(!/\.(?:play|pause|click|scrollTo|scrollBy)\s*\(|\bwindow\.open\s*\(|\bfetch\s*\(/.test(source), 'Phase II contains no real media/browser action implementation');
+  assert.ok(!/\.(?:click|scrollTo|scrollBy)\s*\(|\bwindow\.open\s*\(|\bfetch\s*\(/.test(source), 'No unauthorized browser/navigation actions');
+  if (relative(root, file).replaceAll('\\', '/') !== 'src/adapters/media.js') assert.ok(!/\.(?:play|pause)\s*\(/.test(source), 'Media effects stay in shared adapter');
   await import(pathToFileURL(file));
 }
-console.log(`PASS syntax: ${checked.length} files; production imports: ${production.length}; no external runtime dependency or real browser actions`);
+console.log(`PASS syntax: ${checked.length} files; production imports: ${production.length}; no external runtime dependency or unauthorized browser actions`);

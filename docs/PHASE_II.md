@@ -1,7 +1,9 @@
 # Phase II candidate — Steps 03 and 04
 
 Phase I is accepted at `dc3232040fa4df30ae58eeb08ebc102f2b06942e`.
-Phase II awaits independent ChatGPT review. Step 03 passed 13 tests and import
+Phase II was accepted at `2428489a83d147542b6e318d0bcaeaa6b9766b01`.
+The remainder records historical Phase II scope; Phase III changes are in
+[PHASE_III.md](PHASE_III.md). Step 03 passed 13 tests and import
 checks before Step 04 integration. Final evidence is 32 independent synthetic
 cases, not authenticated Chaoxing or Tampermonkey acceptance. Phase III is not
 started; no real effects, adapters, browser bootstrap or installable exists.

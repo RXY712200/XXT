@@ -7,13 +7,13 @@ another project, or an authenticated production-tested product.
 Repository: [RXY712200/XXT](https://github.com/RXY712200/XXT).
 Canonical working directory: `D:\XXT`; branch: `main`.
 
-Phase I was independently accepted at
-`dc3232040fa4df30ae58eeb08ebc102f2b06942e`. Phase II, Steps 03 and 04, is a
-candidate pending ChatGPT review: read-only platform recognition, ordered task
-inventories, a cancellable coordinator, fresh credit evaluation and single-use
-navigation permits. Tests use inert synthetic DOM and simulated effects only.
-There is no real playback, reader, live-session automation, native navigation,
-browser bootstrap, installable userscript, build packaging or release artifact.
+Phase II was independently accepted at
+`2428489a83d147542b6e318d0bcaeaa6b9766b01`. Phase III (05/06) is a candidate
+pending review: native video/audio adapters, 1.0x, promise-aware startup, bounded
+policy fallback and background recovery integrated with the existing coordinator.
+Completion/navigation gates remain independent of local media results.
+There is no automatic page bootstrap, reader, live-session automation, native
+catalog navigation, installable userscript, build packaging or release artifact.
 
 Start with [HANDOFF](docs/HANDOFF.md). Read the [feature matrix](docs/FEATURE_MATRIX.md)
 and [master plan](docs/MASTER_PLAN.md) before proposing implementation.
@@ -40,6 +40,9 @@ npm run check
 production modules installs nothing on a page. See [Phase II contracts and
 evidence](docs/PHASE_II.md) for explicit assembly and the fake-runtime boundary.
 These checks do not establish authenticated Chaoxing compatibility.
+See [Phase III evidence](docs/PHASE_III.md) for native-browser and synthetic results.
+Optional local Chrome smoke: `node scripts/browser-media.mjs` (Windows default
+Chrome path; override `XXT_CHROME`; uses an isolated ignored `.local/` profile).
 
-Phase III has not started. It requires independent Phase II acceptance and new
+Phase IV has not started. It requires independent Phase III acceptance and new
 user authorization. No website upload, deployment or release is authorized.

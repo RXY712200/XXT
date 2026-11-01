@@ -3,6 +3,7 @@ import { evaluateCompletion } from './completion.js';
 import { createScheduler } from './scheduler.js';
 import { createNavigationGate } from './navigation.js';
 import { inspectInventory } from '../platform/inventory.js';
+import { matchesMediaSource } from '../platform/media-source.js';
 
 /** No real adapters or browser effects are installed here. Ports must be explicit. */
 export function createCoordinator({ clock, adapters = {}, delayFor = () => 0, continueKnownAfterFailure = false } = {}) {
@@ -100,6 +101,13 @@ export function createCoordinator({ clock, adapters = {}, delayFor = () => 0, co
           done: () => done(token), fail: reason => fail(token, reason),
           isCurrent: () => tokenValid(token), now,
           cancelScheduled(key) { return scheduler.cancel(`${token.generation}:task:${record.key}:${key}`); },
+          scheduleRecurring({ key, delay, execute }) {
+            if (!tokenValid(token) || record.state !== State.RUNNING) return false;
+            return scheduler.recurring({ key: `${token.generation}:task:${record.key}:${key}`, delay,
+              validate: () => tokenValid(token) && record.state === State.RUNNING,
+              execute, onInvalid: () => { if (active === token) invalidate('context-invalidated'); },
+              onError: () => fail(token, 'adapter-action-failed') });
+          },
           schedule({ key, delay, execute }) {
             if (!tokenValid(token) || ![State.STARTING, State.RUNNING].includes(record.state)) return false;
             return scheduler.request({ key: `${token.generation}:task:${record.key}:${key}`, delay,
@@ -162,7 +170,7 @@ export function createCoordinator({ clock, adapters = {}, delayFor = () => 0, co
         fresh.tasks.length === initial.tasks.length && fresh.tasks.every((task, i) => {
           const old = initial.tasks[i];
           return task.key === old.key && task.owner === old.owner && task.path.length === old.path.length && task.path.every((node, n) => node === old.path[n]) &&
-            (!old.player || task.player === old.player && task.source === old.source && task.declaredSource === old.declaredSource);
+            (!old.player || task.player === old.player && matchesMediaSource(old.mediaSource, task.player));
         });
       if (!same || fresh.hazards.some(reason => reason !== 'loading-player')) { invalidate('readiness-context-changed'); return; }
       if (fresh.valid) { bind(next); startNext(); return; }

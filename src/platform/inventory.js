@@ -1,4 +1,5 @@
 import { Credit, evidence, identity } from '../core/contracts.js';
+import { captureMediaSource, matchesMediaSource } from './media-source.js';
 
 const inventories = new WeakMap();
 const optionalTitles = new Set(['章节测验', '章节测试', '本章自测']);
@@ -115,10 +116,14 @@ function read(document) {
       lessonKey: lesson?.key || null, ordinal, kind, owner, path: Object.freeze([...(primary.length === 1 ? mediaPaths.get(primary[0]) || path : path)]), player: primary.length === 1 ? primary[0] : null,
       source: primary.length === 1 ? source(primary[0]) : null,
       declaredSource: primary.length === 1 ? primary[0].getAttribute('src') : null,
+      mediaSource: primary.length === 1 ? captureMediaSource(primary[0]) : null,
       resolution, capability: kind === 'unknown' || kind === 'assessment' ? 'unsupported' : 'adapter-required', executable: false,
       evidence: Object.freeze([evidence(key, 'recognition', Credit.UNKNOWN, kind === 'unknown' ? 'independent-unknown-boundary' : 'native-structure')]), credit: observed }));
     structure.push(owner, owner.className, owner.id, owner.getAttribute('data'), owner.getAttribute('src'), key);
-    for (const el of media) structure.push(el, source(el), el.getAttribute('src'));
+    for (const el of media) {
+      structure.push(el, el.getAttribute('src'));
+      for (const node of el.children) if (node.tagName === 'SOURCE') structure.push(node, node.getAttribute('src'), node.getAttribute('type'), node.getAttribute('media'));
+    }
   }
   function visit(el, path, media) {
     if (el.matches('.ans-attach-online') && !path.some(node => node.matches?.('.ans-attach-online'))) {
@@ -176,10 +181,11 @@ export function createInventoryReader() {
   let revision = 0;
   return Object.freeze({ scan(document) {
     const initial = read(document), snapshot = Object.freeze({ ...initial, structure: undefined, revision: ++revision });
+    const sources = initial.documents.flatMap(doc => all(doc, 'video,audio')).map(media => [media, captureMediaSource(media)]);
     inventories.set(snapshot, () => {
       const fresh = read(document);
       const same = fresh.structure.length === initial.structure.length && fresh.structure.every((value,i) => value === initial.structure[i]);
-      return Object.freeze({ valid: same && fresh.status === 'verified', revision: snapshot.revision, ...fresh, structure: undefined });
+      return Object.freeze({ valid: same && sources.every(([media, expected]) => matchesMediaSource(expected, media)) && fresh.status === 'verified', revision: snapshot.revision, ...fresh, structure: undefined });
     });
     return snapshot;
   } });

@@ -6,7 +6,8 @@
 - Phase I accepted: `dc3232040fa4df30ae58eeb08ebc102f2b06942e`.
 - Phase II accepted and Phase III starting baseline:
   `2428489a83d147542b6e318d0bcaeaa6b9766b01`.
-- Phase III Steps 05/06: implemented candidate, PENDING independent ChatGPT review.
+- Phase III Steps 05/06: NOT accepted. Candidate `d76b474a88a25c0afc612206f59476bc60f01b11`
+  failed targeted review. This correction remains pending independent acceptance.
 - Resolve latest SHA with `git rev-parse HEAD`, compare
   `git ls-remote origin refs/heads/main`. Report supplies exact delivery SHA;
   do not hardcode this file's own commit hash.
@@ -18,28 +19,37 @@
 - `D:\XXT\src\adapters\media.js`: shared owned native media effects/recovery.
 - `D:\XXT\src\runtime\media-session.js`: explicit media session assembly.
 - Existing `src/platform/inventory.js`: read-only ordered ownership/evidence;
-  now also reports normalized source and page URL for readiness validation.
+  shared `media-source.js` verifies declarations/initial selection and page context.
 - Existing `src/core/coordinator.js`: one scheduler/active task; new STARTING
   scheduled checks, cancel handles, startup activation handshake and bounded
   same-owner missing-player readiness. Completion/navigation policies unchanged.
+- `src/core/scheduler.js`: one fixed-key recurring action with arm epochs; no
+  per-tick historical growth. Ordinary one-shot keys remain single-use.
 - No production bootstrap/installable/generated userscript; no artifact hash.
 - Other existing platform/core/runtime responsibilities documented in PHASE_II.md.
 - See PHASE_III.md for precise recovery limits, contract changes and evidence.
 
 ## Verification / limitations
 
-- `npm test`: all 32 prior cases retained plus 17 new media cases = 49 synthetic
-  tests. Simulated media state/events/time are not browser playback evidence.
+- `npm test`: all 32 Phase II cases unchanged; 24 media/recurrence cases = 56
+  synthetic tests. Three old readiness fixtures were corrected to distinguish
+  source-present native startup from truly missing-source waiting. Simulated media state/events/time are not browser playback evidence.
 - `npm run check`: syntax/imports, relative production imports, no unauthorized
   navigation/readers/network effects. Native play/pause confined to media.js.
 - `npm ls --omit=dev`: empty. No new dependencies; jsdom remains dev-only.
 - `node scripts/browser-media.mjs`: actual local headless Chrome with generated
-  WAV and native audio/video elements, no autoplay/security override flags.
+  WAV child <source>, preload="none", initial readyState=0; no policy override flags.
   Audio audible+muted attempts were denied; zero completion. Video element with
-  the same audio track played muted and naturally ended once, at 1.0x, no timers
+  the same audio track resolved its declared source, played muted and ended once
+  at 1.0x, no timers
   left. Synthetic ownership context, not actual course video or authenticated DOM.
 - No real OS/application switching, background tab throttling or Tampermonkey
   acceptance. Browser policy may reject muted audio; unattended success not promised.
+- Declared unique URL may select into currentSrc without changing revision;
+  changed declarations/selected URL/player/frame or srcObject remain invalid.
+- Missing/ambiguous source cannot establish identity; bounded wait or explicit
+  fresh scan is required, never automatic adoption of an unapproved source.
+- 3000 simulated healthy monitor ticks retain a constant scheduler record count.
 - Unsupported, unknown, replaced, competing or exhausted content remains unresolved.
 - MASTER_PLAN unchanged; feature rows advance only to scoped PARTIAL evidence.
 

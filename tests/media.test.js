@@ -87,10 +87,12 @@ test('dual audio denial and synchronous unsupported failure remain unresolved, w
   assert.notDeepEqual(h.state(), ['RUNNING']); assert.equal(h.coordinator.navigationDecision().allowed, false); h.close();
 });
 
-test('delayed metadata/readiness and transient AbortError have bounded startup recovery', async () => {
-  const f = fixture(['audio']); f.controls[0].readyState = 0; await f.start(); assert.deepEqual(f.state(), ['STARTING']);
-  await f.tick(1000); assert.equal(f.controls[0].calls, 0); f.controls[0].readyState = 4;
-  await f.tick(100); assert.deepEqual(f.state(), ['RUNNING']); f.close();
+test('source-present delayed play settlement and transient AbortError have bounded startup recovery', async () => {
+  const f = fixture(['audio']); let resolve;
+  f.controls[0].readyState = 0; f.controls[0].behavior = () => new Promise(r => { resolve = r; });
+  await f.start(); assert.deepEqual(f.state(), ['STARTING']);
+  await f.tick(1000); assert.equal(f.controls[0].calls, 1); f.controls[0].readyState = 4; f.controls[0].paused = false; resolve();
+  await microtasks(); assert.deepEqual(f.state(), ['RUNNING']); f.close();
   const g = fixture(['audio']); g.controls[0].behavior = (m,s) => {
     if (s.calls === 1) return Promise.reject(Object.assign(Error('loading'), { name: 'AbortError' }));
     s.paused = false; return Promise.resolve();
@@ -99,7 +101,8 @@ test('delayed metadata/readiness and transient AbortError have bounded startup r
 });
 
 test('audio readiness and hung play promises time out without running or completion', async () => {
-  const f = fixture(['audio']); f.controls[0].readyState = 0; await f.start(); await f.tick(5000);
+  const f = fixture(['audio']); f.controls[0].readyState = 0; f.players[0].removeAttribute('src');
+  f.coordinator.bind(f.reader.scan(f.document)); await f.start(); await f.tick(5000);
   assert.deepEqual(f.state(), ['UNRESOLVED']); assert.equal(f.controls[0].calls, 0); f.close();
   const g = fixture(['audio']); g.controls[0].behavior = () => new Promise(() => {}); await g.start(); await g.tick(5000);
   assert.deepEqual(g.state(), ['UNRESOLVED']); assert.equal(g.time.timers.size, 0); g.close();
@@ -171,7 +174,8 @@ test('readiness adoption rejects changed owners and Stop; pre-start ended cannot
   const g = fixture(['audio']); g.players[0].remove(); g.coordinator.bind(g.reader.scan(g.document));
   g.coordinator.waitForMedia(() => g.reader.scan(g.document)); g.coordinator.stop(); await g.tick(5000);
   assert.equal(g.controls[0].calls, 0); assert.equal(g.time.timers.size, 0); g.close();
-  const h = fixture(['audio']); h.controls[0].readyState = 0; await h.start(); h.controls[0].ended = true;
+  const h = fixture(['audio']); h.controls[0].readyState = 0; h.players[0].removeAttribute('src');
+  h.coordinator.bind(h.reader.scan(h.document)); await h.start(); h.controls[0].ended = true;
   h.controls[0].event('ended'); await h.tick(100); assert.deepEqual(h.state(), ['UNRESOLVED']); h.close();
 });
 
@@ -180,4 +184,63 @@ test('background switch disables recovery without disabling independent media sp
   f.controls[0].paused = true; f.controls[0].event('pause'); await f.tick(10000);
   assert.equal(f.controls[0].calls, 1); f.players[0].playbackRate = 1.5; f.controls[0].event('ratechange');
   assert.equal(f.players[0].playbackRate, 1); f.close();
+});
+
+test('source-present preload-none video starts at readyState zero; audio retains policy fallback', async () => {
+  const f = fixture(); f.players[0].preload = 'none'; f.controls[0].readyState = 0;
+  await f.start(); assert.equal(f.controls[0].calls, 1); assert.deepEqual(f.state(), ['RUNNING']); f.close();
+  const g = fixture(['audio']); g.players[0].preload = 'none'; g.controls[0].readyState = 0;
+  g.controls[0].behavior = (media, state) => {
+    if (!media.muted) return Promise.reject(denied()); state.paused = false; return Promise.resolve();
+  };
+  await g.start(); assert.equal(g.controls[0].calls, 2); assert.equal(g.players[0].muted, true);
+  assert.deepEqual(g.state(), ['RUNNING']); assert.equal(g.players[0].playbackRate, 1); g.close();
+});
+
+test('declared child source may become currentSrc without changing inventory revision or ownership', async () => {
+  for (const kind of ['video','audio']) {
+    const f = fixture([kind]), media = f.players[0], url = 'https://invalid.example/declared-track'; let selected = '';
+    media.removeAttribute('src'); media.innerHTML = `<source src="${url}">`;
+    Object.defineProperty(media, 'currentSrc', { get: () => selected }); f.controls[0].readyState = 0;
+    f.coordinator.bind(f.reader.scan(f.document)); const revision = f.coordinator.snapshot().inventory.revision;
+    f.controls[0].behavior = (m,s) => { selected = url; s.paused = false; return Promise.resolve(); };
+    await f.start(); assert.deepEqual(f.state(), ['RUNNING']); assert.equal(f.coordinator.snapshot().inventory.revision, revision);
+    f.controls[0].ended = true; f.controls[0].event('ended'); assert.deepEqual(f.state(), ['WAITING_PLATFORM']);
+    assert.equal(f.coordinator.navigationDecision().allowed, false); f.close();
+  }
+});
+
+test('ambiguous declarations never grant playback; child replacement and undeclared currentSrc invalidate', async () => {
+  const f = fixture(); const media = f.players[0]; media.removeAttribute('src');
+  media.innerHTML = '<source src="https://invalid.example/a"><source src="https://invalid.example/b">';
+  f.coordinator.bind(f.reader.scan(f.document)); await f.start(); await f.tick(5000);
+  assert.equal(f.controls[0].calls, 0); assert.deepEqual(f.state(), ['UNRESOLVED']); f.close();
+  for (const replaceNode of [false,true]) {
+    const g = fixture(); let selected = ''; const m = g.players[0], url = 'https://invalid.example/a';
+    m.removeAttribute('src'); m.innerHTML = `<source src="${url}">`; Object.defineProperty(m,'currentSrc',{get:()=>selected});
+    g.coordinator.bind(g.reader.scan(g.document)); await g.start(); const pauses = g.controls[0].pauses;
+    if (replaceNode) m.firstChild.replaceWith(m.firstChild.cloneNode()); else selected = 'https://invalid.example/unapproved';
+    await g.tick(1000); assert.notDeepEqual(g.state(), ['RUNNING']); assert.equal(g.controls[0].calls, 1);
+    assert.equal(g.controls[0].pauses, pauses); g.close();
+  }
+});
+
+test('Stop during declared source selection cancels playback authority and owned media after resolution', async () => {
+  const f = fixture(); let selected = '', resolve;
+  const m = f.players[0], url = 'https://invalid.example/owned'; m.removeAttribute('src'); m.innerHTML = `<source src="${url}">`;
+  Object.defineProperty(m,'currentSrc',{get:()=>selected}); f.coordinator.bind(f.reader.scan(f.document));
+  f.controls[0].behavior = (m,s) => { selected = url; s.paused = false; return new Promise(r => { resolve = r; }); };
+  await f.start(); f.coordinator.stop(); assert.equal(f.controls[0].paused, true);
+  resolve(); await microtasks(); f.controls[0].ended = true; f.controls[0].event('ended');
+  assert.deepEqual(f.state(), ['PAUSED']); assert.equal(f.time.timers.size, 0); f.close();
+});
+
+test('three thousand healthy monitor ticks keep one scheduler record and cancellation remains final', async () => {
+  const f = fixture(); await f.start(); const bound = f.coordinator.actions().length;
+  for (let i = 0; i < 3000; i++) { f.controls[0].currentTime++; await f.tick(1000); }
+  assert.equal(f.coordinator.actions().length, bound); assert.equal(f.controls[0].calls, 1);
+  assert.equal(f.coordinator.actions().filter(a => a.status === 'pending').length, 1);
+  f.coordinator.stop(); const calls = f.controls[0].calls;
+  for (const callback of f.time.cancelled) callback(); await f.tick(1000);
+  assert.equal(f.controls[0].calls, calls); assert.equal(f.time.timers.size, 0); f.close();
 });

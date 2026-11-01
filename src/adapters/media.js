@@ -1,19 +1,16 @@
+import { captureMediaSource, matchesMediaSource } from '../platform/media-source.js';
 /** Native media effects only. Scheduling and authority remain with the coordinator. */
 export function startMedia(context, kind, { background = true } = {}) {
   const media = context.task.player;
   if (!media || media.tagName.toLowerCase() !== kind) return Promise.reject(Error('missing-owned-player'));
-  const source = () => {
-    const value = media.currentSrc || media.getAttribute('src') || '';
-    try { return value ? new URL(value, media.baseURI).href : ''; } catch { return value; }
-  };
-  const originalSource = source(), originalAttribute = media.getAttribute('src'), document = media.ownerDocument;
+  const originalSource = captureMediaSource(media), document = media.ownerDocument;
   let disposed = false, activated = false, started = false, pendingEnd = false, ended = false;
   let sequence = 0, playSequence = 0, inFlight = false, mutedFallback = false, readinessRetry = false;
   let recoveries = 0, lastRecovery = -Infinity, lastPosition = media.currentTime, lastProgress = context.now();
   const deadline = context.now() + 5000, listeners = [], ownedActions = new Set();
   let resolveStart, rejectStart;
   const result = new Promise((resolve, reject) => { resolveStart = resolve; rejectStart = reject; });
-  const unchanged = () => media.isConnected && source() === originalSource && media.getAttribute('src') === originalAttribute;
+  const unchanged = () => media.isConnected && matchesMediaSource(originalSource, media);
   const valid = () => !disposed && !context.signal.aborted && unchanged() && context.isCurrent();
   function listen(target, event, fn) { target.addEventListener(event, fn); listeners.push(() => target.removeEventListener(event, fn)); }
   function dispose() {
@@ -46,14 +43,20 @@ export function startMedia(context, kind, { background = true } = {}) {
   const handle = Object.freeze({ cancel: dispose, activate() {
     if (!valid()) { dispose(); return; }
     activated = true;
-    if (pendingEnd && media.ended) { context.done(); dispose(); } else { localEnd(); monitor(); }
+    if (pendingEnd && media.ended) { context.done(); dispose(); } else {
+      localEnd();
+      if (!disposed) {
+        const key = 'media-monitor'; ownedActions.add(key);
+        context.scheduleRecurring({ key, delay: 1000, execute: monitor });
+      }
+    }
   } });
   function attempt() {
     if (!valid()) { dispose(); return; }
     if (inFlight) return;
     if (media.ended) { if (started) localEnd(); else failure('ended-before-successful-start'); return; }
     if (media.error) { failure(`media-error-${media.error.code}`); return; }
-    if (media.readyState < 1) { waitReady(); return; }
+    if (!originalSource.usable) { waitReady(); return; }
     rate(); inFlight = true; const call = ++playSequence;
     schedule(5000, () => { if (inFlight && call === playSequence) failure('play-timeout'); });
     let promise;
@@ -99,7 +102,6 @@ export function startMedia(context, kind, { background = true } = {}) {
     if (media.error) { failure(`media-error-${media.error.code}`); return; }
     if (media.currentTime > lastPosition) { lastPosition = media.currentTime; lastProgress = context.now(); }
     if (background) recover();
-    schedule(1000, monitor);
   }
   listen(media, 'ended', () => { if (!started) pendingEnd = media.ended; else localEnd(); });
   listen(media, 'ratechange', rate);

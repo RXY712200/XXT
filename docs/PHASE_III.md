@@ -2,6 +2,8 @@
 
 Accepted Phase II baseline: `2428489a83d147542b6e318d0bcaeaa6b9766b01`.
 Steps 05 and 06 are one implementation delivery pending independent review.
+Reviewed candidate `d76b474a88a25c0afc612206f59476bc60f01b11` FAILED targeted
+acceptance. This correction remains pending independent review.
 Status PARTIAL: no authenticated Chaoxing acceptance. Phase IV/V not started.
 MASTER_PLAN's five phases and ten steps remain unchanged.
 
@@ -60,7 +62,8 @@ are unchanged from accepted Phase II.
 - Exactly 1.0x default/current playback rate on start, recovery and ratechange.
 - Audible first. One muted retry only for NotAllowedError; never automatically
   unmute later. Dual rejection remains unresolved; no fake interaction or flags.
-- Metadata readiness: 5000ms maximum. One 250ms retry after transient startup
+- Unverified/missing-source readiness waiting: 5000ms maximum. A verified declared
+  source permits native play at readyState=0, including preload="none". One 250ms retry after transient startup
   AbortError. Other errors fail distinctly. Each play promise has a 5000ms watchdog.
 - Real ended event requires current owned element's ended state; loop media and
   pre-existing ended players do not manufacture completion. Duplicate callbacks
@@ -80,10 +83,10 @@ are unchanged from accepted Phase II.
 
 ## Tests and actual evidence
 
-- `npm test`: 49 synthetic cases, including all 32 unchanged Phase II tests and
-  17 new media tests. Real jsdom elements use simulated play/state/events/clock;
+- `npm test`: 56 synthetic cases, including all 32 unchanged Phase II tests and
+  24 media/recurrence tests. Real jsdom elements use simulated play/state/events/clock;
   this does not establish native autoplay permission or authenticated compatibility.
-- `npm run check`: syntax of 17 files, import evaluation of 11 production modules;
+- `npm run check`: syntax of 19 files, import evaluation of 12 production modules;
   no external production dependency or unauthorized browser actions. Scope guard
   now allows play/pause only in media.js; still forbids native navigation/readers.
 - `npm ls --omit=dev`: empty; no new dependency or lockfile change.
@@ -114,3 +117,48 @@ distinguished. HANDOFF records Phase II acceptance and this candidate. No docume
 reader, replay/GM/popup, native catalog action, UI/rest system, package/userscript,
 reference-code import or deployment is part of this change. Independent ChatGPT
 acceptance and new authorization are required before Phase IV.
+
+## Targeted acceptance correction A/B/C
+
+A: The unconditional readyState<1 gate prevented play-triggered initialization.
+The adapter now invokes native play when an independently captured source identity
+is usable, without requiring metadata. Its existing 5000ms play watchdog, policy
+fallback, AbortError budget and STARTING handshake remain intact. Missing or
+ambiguous source declarations do not gain authority from readyState alone and
+retain bounded waiting. No load(), seek or currentTime writes were introduced.
+
+B: `src/platform/media-source.js` provides one contract for the reader, adapter
+and coordinator. A usable source is one normalized HTTP(S), blob or media-data
+URL declared by src or child sources (or an already selected initial currentSrc).
+This verifies source identity, not codec/network success; native play decides
+whether playback succeeds. Declaration nodes, attributes, types, media conditions
+and base URI are pinned. Multiple distinct URLs, invalid selections and srcObject
+are unsupported. Initial empty currentSrc may select only that declared URL;
+an already selected source stays pinned. Declaration/element/frame/context or
+unapproved currentSrc changes invalidate authority. Cleanup uses the same
+contract so valid initial selection can still be paused on Stop; replacements
+are not controlled as the old source. Missing initial identity requires a fresh
+verified scan to adopt later unknown declarations; it is not guessed in place.
+
+C: The existing scheduler adds `recurring(action)`: one key/record, one pending
+arm, no overlapping async callback, per-arm epoch protection. Context exposes
+scoped scheduleRecurring only in RUNNING. The media monitor uses one such key,
+not a new one-shot key each second. Cancel/Stop/invalid context are final; old
+arm callbacks cannot execute a newer arm. Ordinary one-shot keys remain permanently
+single-use; no global tombstone eviction or second timer subsystem exists.
+
+Seven additional focused cases cover preload-none video/audio at readyState=0,
+child source selection with unchanged inventory revision, ambiguous/replaced
+sources, Stop during initialization, 3000 monitor ticks with constant history,
+nonoverlap/stale recurring callbacks and continued one-shot deduplication.
+Three existing readiness fixtures changed for a reason: source-present delayed
+startup now waits on a native play promise; true missing-source timeout and
+pre-start-ended cases remove src before binding. Completion and navigation
+expectations were not weakened; their original Phase II tests are unchanged.
+
+The native smoke now starts both elements with preload="none", a declared WAV
+child source and readyState=0, without waiting for metadata. Chrome denied audio's
+audible and muted attempts (zero local completion); video selected the declared
+source, progressed and naturally ended once at 1.0x with no pending actions.
+This is a limited native API/initial-source check with synthetic ownership,
+not authenticated platform, real video pixels or background OS-switch evidence.

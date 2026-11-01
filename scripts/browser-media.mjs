@@ -45,19 +45,22 @@ try {
     word(0,'RIFF'); view.setUint32(4,36+samples*2,true); word(8,'WAVE'); word(12,'fmt ');view.setUint32(16,16,true);
     view.setUint16(20,1,true);view.setUint16(22,1,true);view.setUint32(24,8000,true);view.setUint32(28,16000,true);view.setUint16(32,2,true);view.setUint16(34,16,true);word(36,'data');view.setUint32(40,samples*2,true);
     for(let i=0;i<samples;i++)view.setInt16(44+i*2,Math.sin(i*2*Math.PI*220/8000)*1000,true);
-    audio.src=URL.createObjectURL(new Blob([data],{type:'audio/wav'}));
-    await new Promise((resolve,reject)=>{audio.onloadedmetadata=resolve;audio.onerror=reject;});
+    audio.preload='none';
+    const declaredURL=URL.createObjectURL(new Blob([data],{type:'audio/wav'}));
+    const source=document.createElement('source');source.src=declaredURL;source.type='audio/wav';audio.append(source);
+    const initialReadyState=audio.readyState;
     let completions=0, failures=[], initialTime=audio.currentTime;
     const ended = new Promise((resolve,reject)=>{
       const timeout=setTimeout(()=>reject(Error('native end timeout')),8000);
       const context={task:{player:audio,owner:audio,path:[]},signal:abort.signal,now:()=>Date.now(),isCurrent:()=>!abort.signal.aborted,
-        schedule: action=>scheduler.request({...action,validate:()=>!abort.signal.aborted}),cancelScheduled:key=>scheduler.cancel(key),
+        schedule: action=>scheduler.request({...action,validate:()=>!abort.signal.aborted}),
+        scheduleRecurring: action=>scheduler.recurring({...action,validate:()=>!abort.signal.aborted}),cancelScheduled:key=>scheduler.cancel(key),
         done(){completions++;clearTimeout(timeout);resolve();},fail(reason){failures.push(reason);clearTimeout(timeout);reject(Error(reason));}};
       startMedia(context,kind).then(handle=>handle.activate(),error=>{clearTimeout(timeout);reject(error);});
     });
     let outcome='ended';try{await ended;}catch(error){if(error.message!=='autoplay-denied-after-fallback')throw error;outcome=error.message;}
-    const result={kind,outcome,ended:audio.ended,completions,failures,rate:audio.playbackRate,progressed:audio.currentTime>initialTime,muted:audio.muted,pending:scheduler.snapshot().filter(a=>a.status==='pending').length};
-    abort.abort();scheduler.cancelAll();URL.revokeObjectURL(audio.src);return result;
+    const result={kind,initialReadyState,selectedDeclaredSource:audio.currentSrc===declaredURL,outcome,ended:audio.ended,completions,failures,rate:audio.playbackRate,progressed:audio.currentTime>initialTime,muted:audio.muted,pending:scheduler.snapshot().filter(a=>a.status==='pending').length};
+    abort.abort();scheduler.cancelAll();URL.revokeObjectURL(declaredURL);return result;
     }
     return [await run('audio'),await run('video')];
   })()`;
@@ -65,8 +68,9 @@ try {
   assert.equal(result.exceptionDetails, undefined, JSON.stringify(result.exceptionDetails));
   const values = result.result.value;
   for (const value of values) {
+    assert.equal(value.initialReadyState, 0);
     assert.equal(value.rate, 1); assert.equal(value.pending, 0); assert.deepEqual(value.failures, []);
-    if (value.outcome === 'ended') { assert.equal(value.ended, true); assert.equal(value.completions, 1); assert.equal(value.progressed, true); }
+    if (value.outcome === 'ended') { assert.equal(value.selectedDeclaredSource, true); assert.equal(value.ended, true); assert.equal(value.completions, 1); assert.equal(value.progressed, true); }
     else { assert.equal(value.outcome, 'autoplay-denied-after-fallback'); assert.equal(value.completions, 0); assert.equal(value.ended, false); }
   }
   console.log('PASS native Chrome policy/end safety smoke:', JSON.stringify(values));

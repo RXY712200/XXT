@@ -9,10 +9,11 @@
   If identity, branch, baseline or canonical paths disagree, stop and report.
 - Read `docs/HANDOFF.md`, `docs/MASTER_PLAN.md` and the relevant feature rows first.
   HANDOFF is the authoritative resumption entry point; recheck its Git claims.
-- Phase II is accepted at `2428489a83d147542b6e318d0bcaeaa6b9766b01`.
-  Current authorization covers Phase III, Steps 05 and 06, in one delivery.
-  Stop after that delivery; Phase IV requires independent ChatGPT acceptance and
-  new explicit authorization. Preserve the fixed five-phase / ten-step plan.
+- Phase III is accepted for scoped implementation at
+  `64b67cb29ed95ee03946775f43c8b9bee29c9b76`, not authenticated compatibility.
+  Current authorization covers Phase IV, Steps 07/08 together. Stop after its
+  delivery; Phase V needs independent acceptance and new explicit authorization.
+  Preserve the fixed five-phase / ten-step plan.
 - Stop an affected portion when a protected decision must change. Report the
   concrete dependency for ChatGPT; do not silently alter the contract.
 
@@ -52,9 +53,9 @@
   do not establish real compatibility. Report PARTIAL/FAIL when warranted.
 - Reuse focused tests. Add meaningful regression cases, not combinatorial coverage
   for its own sake. Keep failures visible and explain approved expectation changes.
-- Phase III permits independently written native video/audio adapters, shared
-  bounded recovery, minimal core integration and controlled browser tests. No
-  documents/live automation, native navigation, settings/rest UI or installable.
+- Phase IV permits evidenced native HTML reading, mixed-task continuation and
+  conservative live/assessment/recognition-only integration. Unsupported platform
+  structures remain disabled. No pacing/settings UI, production packaging or release.
   Future build/installable paths require an approved canonical-file contract.
 - Update HANDOFF after each authorized delivery: phase, acceptance, baseline,
   deliverables, blockers, tests, protected decisions and next authorization.

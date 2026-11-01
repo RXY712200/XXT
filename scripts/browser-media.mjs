@@ -62,11 +62,24 @@ try {
     const result={kind,initialReadyState,selectedDeclaredSource:audio.currentSrc===declaredURL,outcome,ended:audio.ended,completions,failures,rate:audio.playbackRate,progressed:audio.currentTime>initialTime,muted:audio.muted,pending:scheduler.snapshot().filter(a=>a.status==='pending').length};
     abort.abort();scheduler.cancelAll();URL.revokeObjectURL(declaredURL);return result;
     }
-    return [await run('audio'),await run('video')];
+    const mediaResults=[await run('audio'),await run('video')];
+    const {createDocumentAdapter}=await import('/src/adapters/document.js');
+    const frame=document.createElement('iframe');document.body.append(frame);
+    const d=frame.contentDocument;d.body.innerHTML='<div style="height:80px;overflow-y:auto"><div style="height:180px">Generated native HTML reader</div></div>';
+    const viewer=d.body.firstChild,scheduler=createScheduler(),abort=new AbortController();let readingDone=0;
+    await new Promise((resolve,reject)=>{const timeout=setTimeout(()=>reject(Error('native reader timeout')),15000);
+      const context={task:{owner:frame,kind:'document',identity:'verified'},signal:abort.signal,isCurrent:()=>!abort.signal.aborted,now:()=>Date.now(),
+        schedule:action=>scheduler.request({...action,validate:()=>!abort.signal.aborted}),scheduleRecurring:action=>scheduler.recurring({...action,validate:()=>!abort.signal.aborted}),
+        cancelScheduled:key=>scheduler.cancel(key),done(){readingDone++;clearTimeout(timeout);resolve();},fail(reason){clearTimeout(timeout);reject(Error(reason));}};
+      createDocumentAdapter({random:()=>0.5}).start(context).then(handle=>handle.activate(),reject);
+    });
+    const readerResult={localDone:readingDone,top:viewer.scrollTop,range:viewer.scrollHeight-viewer.clientHeight};
+    abort.abort();scheduler.cancelAll();frame.remove();return {mediaResults,readerResult};
   })()`;
   const result = await send('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true, timeout: 15000 }, sessionId);
   assert.equal(result.exceptionDetails, undefined, JSON.stringify(result.exceptionDetails));
-  const values = result.result.value;
+  const {mediaResults:values,readerResult} = result.result.value;
+  assert.equal(readerResult.localDone,1);assert.equal(readerResult.top,readerResult.range);
   for (const value of values) {
     assert.equal(value.initialReadyState, 0);
     assert.equal(value.rate, 1); assert.equal(value.pending, 0); assert.deepEqual(value.failures, []);
@@ -74,6 +87,7 @@ try {
     else { assert.equal(value.outcome, 'autoplay-denied-after-fallback'); assert.equal(value.completions, 0); assert.equal(value.ended, false); }
   }
   console.log('PASS native Chrome policy/end safety smoke:', JSON.stringify(values));
+  console.log('PASS native Chrome HTML reader geometry/local-bottom smoke:',JSON.stringify(readerResult));
   console.log('Fixture is a generated WAV audio track in audio/video elements, not real course video.');
   console.log('Not authenticated Chaoxing, not a background OS/tab-switch test; synthetic ownership context, real media API/events.');
   await send('Browser.close');

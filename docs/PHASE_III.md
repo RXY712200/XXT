@@ -1,4 +1,8 @@
-# Phase III — video/audio candidate
+# Phase III — historical implementation evidence
+
+Accepted for scoped implementation at `64b67cb29ed95ee03946775f43c8b9bee29c9b76`.
+Authenticated compatibility is not accepted. Below records the original candidate
+and correction history; current Phase IV scope is in PHASE_IV.md.
 
 Accepted Phase II baseline: `2428489a83d147542b6e318d0bcaeaa6b9766b01`.
 Steps 05 and 06 are one implementation delivery pending independent review.

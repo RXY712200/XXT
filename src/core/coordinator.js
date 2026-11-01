@@ -6,7 +6,7 @@ import { inspectInventory } from '../platform/inventory.js';
 import { matchesMediaSource } from '../platform/media-source.js';
 
 /** No real adapters or browser effects are installed here. Ports must be explicit. */
-export function createCoordinator({ clock, adapters = {}, delayFor = () => 0, continueKnownAfterFailure = false } = {}) {
+export function createCoordinator({ clock, adapters = {}, delayFor = () => 0, continueKnownAfterFailure = false, autoContinue = false } = {}) {
   const scheduler = createScheduler(clock);
   const now = clock?.now || (() => Date.now());
   let inventory = null, records = [], generation = 0, stopped = false, destroyed = false;
@@ -54,7 +54,11 @@ export function createCoordinator({ clock, adapters = {}, delayFor = () => 0, co
     if (!tokenValid(token)) { if (active === token) invalidate('context-invalidated'); return false; }
     if (token.record.state !== State.RUNNING) return false;
     transition(token.record, State.LOCAL_COMPLETED); transition(token.record, State.WAITING_PLATFORM);
-    diagnostic = 'local-ended-not-platform-credit'; release(token); return true;
+    diagnostic = 'local-ended-not-platform-credit'; release(token);
+    if (autoContinue) scheduler.request({ key: `${generation}:continue:${token.record.key}`, delay: 0,
+      validate: () => generation === token.generation && valid() && !active && !navigation,
+      execute: startNext, onInvalid: () => { if (generation === token.generation && !valid()) invalidate('continuation-context-invalid'); } });
+    return true;
   }
   function startNext() {
     if (active || navigation || !valid()) {
@@ -100,6 +104,7 @@ export function createCoordinator({ clock, adapters = {}, delayFor = () => 0, co
         const context = Object.freeze({ task: record.task, generation: token.generation, signal: token.abort.signal,
           done: () => done(token), fail: reason => fail(token, reason),
           isCurrent: () => tokenValid(token), now,
+          note(reason) { if (tokenValid(token) && typeof reason === 'string') diagnostic = reason; },
           cancelScheduled(key) { return scheduler.cancel(`${token.generation}:task:${record.key}:${key}`); },
           scheduleRecurring({ key, delay, execute }) {
             if (!tokenValid(token) || record.state !== State.RUNNING) return false;

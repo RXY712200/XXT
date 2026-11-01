@@ -120,6 +120,7 @@ function read(document) {
       resolution, capability: kind === 'unknown' || kind === 'assessment' ? 'unsupported' : 'adapter-required', executable: false,
       evidence: Object.freeze([evidence(key, 'recognition', Credit.UNKNOWN, kind === 'unknown' ? 'independent-unknown-boundary' : 'native-structure')]), credit: observed }));
     structure.push(owner, owner.className, owner.id, owner.getAttribute('data'), owner.getAttribute('src'), key);
+    if (kind === 'live') structure.push(owner.getAttribute('href'), owner.textContent);
     for (const el of media) {
       structure.push(el, el.getAttribute('src'));
       for (const node of el.children) if (node.tagName === 'SOURCE') structure.push(node, node.getAttribute('src'), node.getAttribute('type'), node.getAttribute('media'));

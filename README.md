@@ -7,13 +7,13 @@ another project, or an authenticated production-tested product.
 Repository: [RXY712200/XXT](https://github.com/RXY712200/XXT).
 Canonical working directory: `D:\XXT`; branch: `main`.
 
-Phase II was independently accepted at
-`2428489a83d147542b6e318d0bcaeaa6b9766b01`. Phase III (05/06) is a candidate
-pending review: native video/audio adapters, 1.0x, promise-aware startup, bounded
-policy fallback and background recovery integrated with the existing coordinator.
-Completion/navigation gates remain independent of local media results.
-There is no automatic page bootstrap, reader, live-session automation, native
-catalog navigation, installable userscript, build packaging or release artifact.
+Phase III was accepted for scoped implementation at
+`64b67cb29ed95ee03946775f43c8b9bee29c9b76`. Phase IV (07/08) is a candidate
+pending review: accessible native HTML document scrolling, event-driven mixed-task
+continuation and a conservative manual native-live boundary. Unknown structures
+and unverified cross-window completion remain unsupported.
+There is no automatic page bootstrap, real catalog navigation, installable,
+production packaging, settings/pacing UI or release artifact.
 
 Start with [HANDOFF](docs/HANDOFF.md). Read the [feature matrix](docs/FEATURE_MATRIX.md)
 and [master plan](docs/MASTER_PLAN.md) before proposing implementation.
@@ -40,9 +40,10 @@ npm run check
 production modules installs nothing on a page. See [Phase II contracts and
 evidence](docs/PHASE_II.md) for explicit assembly and the fake-runtime boundary.
 These checks do not establish authenticated Chaoxing compatibility.
-See [Phase III evidence](docs/PHASE_III.md) for native-browser and synthetic results.
+See [Phase IV evidence](docs/PHASE_IV.md) for native-browser, synthetic and
+unsupported-path results.
 Optional local Chrome smoke: `node scripts/browser-media.mjs` (Windows default
 Chrome path; override `XXT_CHROME`; uses an isolated ignored `.local/` profile).
 
-Phase IV has not started. It requires independent Phase III acceptance and new
+Phase V has not started. It requires independent Phase IV acceptance and new
 user authorization. No website upload, deployment or release is authorized.

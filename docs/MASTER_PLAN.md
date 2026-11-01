@@ -2,10 +2,12 @@
 
 ## Scope and acceptance
 
-This plan has exactly five phases and ten implementation steps. Only Steps 01
-and 02 are currently authorized. Their deliverables are documents and empty
-directories. Everything described below as a runtime interface, state, test or
-artifact is a design obligation for a later accepted step, not existing code.
+This plan has exactly five phases and ten implementation steps. Phase I is
+accepted at `dc3232040fa4df30ae58eeb08ebc102f2b06942e`. Steps 03 and 04 are
+authorized together as Phase II; Step 03 passed internal tests before Step 04
+integration. Phase II is a candidate pending independent ChatGPT acceptance.
+Only the foundations documented in PHASE_II.md exist; later adapters, browser
+effects and artifacts remain design obligations, not implemented features.
 
 The [feature matrix](FEATURE_MATRIX.md) is the capability baseline. The user owns
 product requirements and final authorization; ChatGPT owns architecture, scope
@@ -43,7 +45,8 @@ ports; adapters report events into core through their supplied task context.
 
 ## Data and interfaces
 
-These are language-neutral interface definitions, not executable stubs.
+These are architectural contracts. Concrete Phase II interfaces and evidence
+envelopes are specified in [PHASE_II.md](PHASE_II.md); later ports remain designs.
 
 | Contract | Required inputs and outputs | Constraints |
 | --- | --- | --- |
@@ -71,7 +74,8 @@ after reload or authorize catalog movement.
 Core has one execution coordinator. It may move among idle, scanning, ready,
 starting, running, verifying, cooldown/rest, waiting for an external session,
 unresolved, paused and stopped conditions. Concrete transition names and tables
-are Step 04 deliverables; this is not permission to implement them now.
+are Step 04 deliverables, now specified in PHASE_II.md. Later recovery, rest and
+external-session states are not implemented in this Phase II candidate.
 
 Before starting or continuing a task, validate course/lesson identity, owner,
 inventory order/revision, feature settings, generation and safety hazards.
@@ -170,7 +174,7 @@ review in Step 08; no domains or privileged contexts are invented here.
 - Deliverables: transition table, cancellable single scheduler, eligibility and
   completion gates, navigation-permit protocol and any explicitly accepted
   same-lesson deferral/failure rules, with independent regression cases.
-- Dependencies: Step 03 inventory/identity acceptance; reviewed completion and
+- Dependencies: Step 03 inventory/identity internal test gate; reviewed completion and
   optional-assessment evidence; approved retry/delay/cancellation policy.
 - Acceptance: duplicates, stale generations, contradictory credit, Stop/reload,
   failed tasks and ambiguous targets cannot navigate; action precedence prevents
@@ -276,22 +280,20 @@ review in Step 08; no domains or privileged contexts are invented here.
 - Explicit exclusions: automatic merge/release/tag/deployment/website upload,
   production-tested claims without evidence, and scope beyond this ten-step plan.
 
-## Phase II entry conditions and open decisions
+## Entry conditions and open decisions
 
-Do not execute these conditions as Phase I work:
-
-- ChatGPT accepts FEATURE_MATRIX and this architecture, including priority and
-  uncertainty treatment; the user explicitly authorizes Step 03 execution.
-- Record the actual accepted XXT commit/ref in HANDOFF after that decision. A
-  pushed candidate is not automatically a last accepted baseline.
-- Recheck `RXY712200/XXT`, `D:\XXT`, `main`, clean status and the accepted HEAD.
-- Accept the Step 03 JavaScript module/test toolchain and permitted synthetic
-  structural inputs. No private reference fixtures may be copied by default.
-- Keep Step 03 read-only recognition; Steps 04-10 are not automatically authorized.
+- Phase I acceptance and explicit Phase II authorization are recorded in HANDOFF.
+  A pushed Phase II candidate is not an independently accepted baseline.
+- Phase II started from verified `RXY712200/XXT`, `D:\XXT`, `main`, clean local
+  state and matching remote HEAD. ES modules, Node >=22, node:test and dev-only
+  jsdom are authorized. No private reference fixtures are imported.
+- Step 03 remains read-only. Step 04 uses only explicit fake execution/navigation
+  ports in tests. Steps 05-10 require their own acceptance/authorization gates.
 - Later unresolved choices include exact policy defaults, credit-marker coverage,
   safe deferral, actual document/live evidence, transport/grants and installable
   path/tooling. Decide them at their dependency gates instead of guessing now.
 
-Phase I validation checks documents, links, structure, privacy and Git ancestry.
-It cannot test playback, browser permissions, platform compatibility or packaging
-because there is no XXT implementation yet.
+Phase I validation covered documents, structure, privacy and Git ancestry.
+Phase II adds synthetic recognition/core tests and syntax/import checks. Neither
+establishes media playback, browser permissions, authenticated compatibility or
+packaging readiness.

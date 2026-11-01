@@ -9,9 +9,11 @@
   If identity, branch, baseline or canonical paths disagree, stop and report.
 - Read `docs/HANDOFF.md`, `docs/MASTER_PLAN.md` and the relevant feature rows first.
   HANDOFF is the authoritative resumption entry point; recheck its Git claims.
-- Current authorization ends at Phase I, Steps 01 and 02. Do not start Phase II
-  without ChatGPT acceptance and explicit user authorization. Do not invent phases
-  or steps beyond the five phases and ten steps in MASTER_PLAN.
+- Phase I is accepted at `dc3232040fa4df30ae58eeb08ebc102f2b06942e`.
+  Current authorization covers Phase II, Steps 03 and 04 together, with Step 03
+  internal tests passing before Step 04 integration. Stop after Phase II delivery;
+  Phase III requires ChatGPT acceptance and new explicit user authorization.
+  Do not invent phases or steps beyond the fixed five phases and ten steps.
 - Stop an affected portion when a protected decision must change. Report the
   concrete dependency for ChatGPT; do not silently alter the contract.
 
@@ -51,9 +53,10 @@
   do not establish real compatibility. Report PARTIAL/FAIL when warranted.
 - Reuse focused tests. Add meaningful regression cases, not combinatorial coverage
   for its own sake. Keep failures visible and explain approved expectation changes.
-- Phase I is documentation and minimal directories only. No execution code,
-  package/build scaffolding, release artifact or installable is authorized yet.
-  Future source/build/installable paths require an approved canonical-file contract.
+- Phase II permits independent ES modules, Node tests, jsdom as dev-only dependency,
+  and simulated runtime boundaries. No real playback, scrolling, popup/catalog
+  actions, settings UI, full pacing, build packaging or installable is authorized.
+  Future build/installable paths require an approved canonical-file contract.
 - Update HANDOFF after each authorized delivery: phase, acceptance, baseline,
   deliverables, blockers, tests, protected decisions and next authorization.
   Keep it under 200 lines. Obtain the latest SHA from `git rev-parse HEAD`; do not

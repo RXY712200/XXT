@@ -1,0 +1,7 @@
+# Local dependencies and private reference material are never initial deliverables.
+node_modules/
+.local/
+fixtures/private/
+.env
+.env.*
+*.log

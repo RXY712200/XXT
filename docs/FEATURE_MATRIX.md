@@ -104,3 +104,7 @@ row descriptions above remain requirements, not authenticated acceptance.
 F04/F05 targeted correction: initial/explicit objective activation share one
 bounded operation; Rescan preserves Stop; current video title/text recognition
 is consistent. Evidence is synthetic and controlled Chrome only.
+
+F05 final identity repair: exact unique active, distinct numbered and ambiguous
+generic/numbered outcomes; controlled native trusted mouse integration tested
+on a synthetic page. Actual Chaoxing acceptance remains pending.

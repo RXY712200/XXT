@@ -116,6 +116,28 @@ try {
   const reloaded=await send('Runtime.evaluate',{expression:userscript+'\n({paused:window.XXT.view().message,panels:document.querySelectorAll("#xxt-control").length});',returnByValue:true},sessionId);
   assert.equal(reloaded.exceptionDetails,undefined);assert.equal(reloaded.result.value.panels,1);assert.match(reloaded.result.value.paused,/停止/);
   console.log('PASS native Chrome generated artifact/UI duplicate-injection and persisted Stop/reload; synthetic intercepted page, no authenticated platform evidence.');
+  const prepareTabs = `(stopAfterClick=false)=>{
+    window.XXT.dispose();document.body.innerHTML='<div class="prev_title" title="1视频"></div><div id="coursetree"><div id="unit" class="posCatalog_select posCatalog_active"><span class="posCatalog_name">Synthetic</span><input class="jobUnfinishCount" value="1"></div></div><button class="prev_white">2视频</button><iframe info="card"></iframe>';
+    window.__tabs={old:0,next:0,pauses:0,trusted:0};
+    function content(which){const root=document.querySelector('iframe').contentDocument;root.body.innerHTML='<iframe id="owned-'+which+'" class="ans-attach-online ans-insertvideo-online"></iframe>';const doc=root.querySelector('iframe').contentDocument,m=doc.createElement('video');let paused=true;m.id='video_html5_api';m.src='https://invalid.example/'+which;Object.defineProperties(m,{readyState:{get:()=>4},paused:{get:()=>paused}});m.play=()=>{window.__tabs[which]++;paused=false;return Promise.resolve();};m.pause=()=>{paused=true;window.__tabs.pauses++;};doc.body.append(m);}
+    content('old');localStorage.setItem('xxt.state.v1',JSON.stringify({version:1,settings:{delays:false},stopped:false,restUntil:0,count:0,seen:[]}));
+    document.querySelector('button').onclick=e=>{if(e.isTrusted)window.__tabs.trusted++;const title=document.querySelector('.prev_title');if((title.getAttribute('title')||title.textContent)==='2视频')return;title.title='2视频';setTimeout(()=>content('next'),100);if(stopAfterClick)window.XXT.stop();};
+  }`;
+  async function evaluate(expression){const result=await send('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true},sessionId);assert.equal(result.exceptionDetails,undefined,JSON.stringify(result.exceptionDetails));return result.result.value;}
+  async function nativeTabClick(){const rect=await evaluate('(()=>{const r=document.querySelector("button.prev_white").getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2};})()');
+    await send('Input.dispatchMouseEvent',{type:'mousePressed',button:'left',clickCount:1,...rect},sessionId);await send('Input.dispatchMouseEvent',{type:'mouseReleased',button:'left',clickCount:1,...rect},sessionId);}
+  await evaluate(`(${prepareTabs})()`);await evaluate(userscript);await evaluate('new Promise(r=>setTimeout(r,100))');
+  await nativeTabClick();await evaluate('new Promise(r=>setTimeout(r,1100))');
+  let tabResult=await evaluate('({...window.__tabs,state:window.XXT.view().taskState})');assert.equal(tabResult.trusted,1);assert.equal(tabResult.old,1);assert.equal(tabResult.next,1);assert.equal(tabResult.state,'RUNNING');
+  const pauses=tabResult.pauses;await nativeTabClick();
+  await evaluate('document.querySelector(".prev_title").removeAttribute("title");document.querySelector(".prev_title").textContent="2视频"');await nativeTabClick();
+  tabResult=await evaluate('({...window.__tabs,state:window.XXT.view().taskState})');assert.equal(tabResult.pauses,pauses);assert.equal(tabResult.next,1);assert.equal(tabResult.state,'RUNNING');
+  await evaluate(`(${prepareTabs})()`);await evaluate('document.querySelector(".prev_title").title="视频";document.querySelector("button").onclick=e=>{if(e.isTrusted)window.__tabs.trusted++;};');
+  await evaluate(userscript);await evaluate('new Promise(r=>setTimeout(r,100))');await nativeTabClick();await evaluate('new Promise(r=>setTimeout(r,600))');
+  tabResult=await evaluate('({...window.__tabs,state:window.XXT.view().taskState})');assert.equal(tabResult.trusted,1);assert.equal(tabResult.pauses,0);assert.equal(tabResult.old,1);assert.equal(tabResult.state,'RUNNING');
+  await evaluate(`(${prepareTabs})(true)`);await evaluate(userscript);await evaluate('new Promise(r=>setTimeout(r,100))');await nativeTabClick();await evaluate('new Promise(r=>setTimeout(r,1100))');
+  assert.equal((await evaluate('window.__tabs')).next,0);
+  console.log('PASS native Chromium trusted mouse tab transition, active title/text re-click and Stop cancellation; media playback mocked on synthetic page, no authenticated evidence.');
   await send('Browser.close');
 } finally {
   socket?.close(); child.kill(); await new Promise(resolve => server.close(resolve));

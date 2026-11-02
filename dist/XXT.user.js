@@ -30,7 +30,7 @@ const { createPreferences, sampleDelay } = __require("src/runtime/preferences.js
 const { createDiagnostics } = __require("src/runtime/diagnostics.js");
 const { mountPanel } = __require("src/ui/panel.js");
 const { evaluateCompletion } = __require("src/core/completion.js");
-const { objectiveVideoTab, activateObjectiveTab, isActiveVideoTab } = __require("src/runtime/native-tabs.js");
+const { objectiveVideoTab, activateObjectiveTab, videoTabIdentity } = __require("src/runtime/native-tabs.js");
 const singleton = Symbol.for('XXT.browser.runtime.v1');
 function bootstrap(document, { clock, random = Math.random, storage, ui = true } = {}) {
   const window = document.defaultView;
@@ -189,7 +189,7 @@ function bootstrap(document, { clock, random = Math.random, storage, ui = true }
   function manualTab(event) {
     if (!event.isTrusted || stopped || tabPending || !event.target.closest?.('.prev_white') || !/^(?:\d+\s*)?视频$/.test(event.target.closest('.prev_white').textContent.trim())) return;
     const inventory = c.snapshot().inventory; if (!inventory?.lesson?.key) return;
-    if (isActiveVideoTab(document,event.target.closest('.prev_white'))) return;
+    if (videoTabIdentity(document,event.target.closest('.prev_white')) !== 'distinct') return;
     tabPending = { previous: inventory, courseKey: inventory.courseKey, lessonKey: inventory.lesson.key, until: now()+10000 };
     stopped = true; c.contextChanged(); stopped = false; arm();
   }
@@ -1303,10 +1303,18 @@ function currentStepTitle(document) {
   const titles = [...document.querySelectorAll('.prev_title')];
   return titles.length === 1 ? (titles[0].getAttribute('title') || titles[0].textContent || '').trim() : '';
 }
-function isActiveVideoTab(document,target) {
+function videoTabIdentity(document,target) {
   const title = currentStepTitle(document), label = target.textContent.trim();
-  if (!/^(?:\d+\s*)?视频$/.test(title)) return false;
-  return title === label || [...document.querySelectorAll('.prev_white')].filter(node => /^(?:\d+\s*)?视频$/.test(node.textContent.trim())).length === 1;
+  if (!target.isConnected || !target.matches('.prev_white') || !/^(?:\d+\s*)?视频$/.test(label)) return 'ambiguous';
+  const matches = [...document.querySelectorAll('.prev_white')].filter(node => node.textContent.trim() === label);
+  if (matches.length !== 1) return 'ambiguous';
+  if (title === label) return 'active';
+  if (/^\d+\s*视频$/.test(title) && /^\d+\s*视频$/.test(label)) return 'distinct';
+  if (title === '学习目标') return 'distinct';
+  return 'ambiguous';
+}
+function isActiveVideoTab(document,target) {
+  return videoTabIdentity(document,target) === 'active';
 }
 function objectiveVideoTab(document) {
   if (currentStepTitle(document) !== '学习目标') return null;
@@ -1323,7 +1331,7 @@ function activateObjectiveTab(document, target) {
   target.click(); return true; // Original native handler, no fabricated trusted gesture.
 }
 
-Object.assign(__exports, {currentStepTitle,isActiveVideoTab,objectiveVideoTab,activateObjectiveTab});
+Object.assign(__exports, {currentStepTitle,videoTabIdentity,isActiveVideoTab,objectiveVideoTab,activateObjectiveTab});
 }
 };
 const __cache=Object.create(null);

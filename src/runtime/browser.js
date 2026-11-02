@@ -9,7 +9,7 @@ import { createPreferences, sampleDelay } from './preferences.js';
 import { createDiagnostics } from './diagnostics.js';
 import { mountPanel } from '../ui/panel.js';
 import { evaluateCompletion } from '../core/completion.js';
-import { objectiveVideoTab, activateObjectiveTab, isActiveVideoTab } from './native-tabs.js';
+import { objectiveVideoTab, activateObjectiveTab, videoTabIdentity } from './native-tabs.js';
 
 const singleton = Symbol.for('XXT.browser.runtime.v1');
 export function bootstrap(document, { clock, random = Math.random, storage, ui = true } = {}) {
@@ -169,7 +169,7 @@ export function bootstrap(document, { clock, random = Math.random, storage, ui =
   function manualTab(event) {
     if (!event.isTrusted || stopped || tabPending || !event.target.closest?.('.prev_white') || !/^(?:\d+\s*)?视频$/.test(event.target.closest('.prev_white').textContent.trim())) return;
     const inventory = c.snapshot().inventory; if (!inventory?.lesson?.key) return;
-    if (isActiveVideoTab(document,event.target.closest('.prev_white'))) return;
+    if (videoTabIdentity(document,event.target.closest('.prev_white')) !== 'distinct') return;
     tabPending = { previous: inventory, courseKey: inventory.courseKey, lessonKey: inventory.lesson.key, until: now()+10000 };
     stopped = true; c.contextChanged(); stopped = false; arm();
   }

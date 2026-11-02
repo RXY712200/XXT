@@ -3,10 +3,18 @@ export function currentStepTitle(document) {
   const titles = [...document.querySelectorAll('.prev_title')];
   return titles.length === 1 ? (titles[0].getAttribute('title') || titles[0].textContent || '').trim() : '';
 }
-export function isActiveVideoTab(document,target) {
+export function videoTabIdentity(document,target) {
   const title = currentStepTitle(document), label = target.textContent.trim();
-  if (!/^(?:\d+\s*)?视频$/.test(title)) return false;
-  return title === label || [...document.querySelectorAll('.prev_white')].filter(node => /^(?:\d+\s*)?视频$/.test(node.textContent.trim())).length === 1;
+  if (!target.isConnected || !target.matches('.prev_white') || !/^(?:\d+\s*)?视频$/.test(label)) return 'ambiguous';
+  const matches = [...document.querySelectorAll('.prev_white')].filter(node => node.textContent.trim() === label);
+  if (matches.length !== 1) return 'ambiguous';
+  if (title === label) return 'active';
+  if (/^\d+\s*视频$/.test(title) && /^\d+\s*视频$/.test(label)) return 'distinct';
+  if (title === '学习目标') return 'distinct';
+  return 'ambiguous';
+}
+export function isActiveVideoTab(document,target) {
+  return videoTabIdentity(document,target) === 'active';
 }
 export function objectiveVideoTab(document) {
   if (currentStepTitle(document) !== '学习目标') return null;

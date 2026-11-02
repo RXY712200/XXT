@@ -115,7 +115,7 @@ Collect sanitized evidence for blocked structures together, never private HTML.
 Separate proprietary knowledge-map geometry remains unverified; the ReadWeb marker
 identifies the evidenced book surface only, not universal knowledge-map support.
 Final checks: 81 PASS / 0 FAIL; syntax 36, imports 24; zero production dependencies.
-Current sole artifact SHA-256: 81df4e2e79a9bd96e11c565ccea1f70fab38100117ff87dc5de79857015e826b.
+Current sole artifact SHA-256: 04bcbfc826fd7c5c4d27f5116f536f6865b262871d612facdc8575081fa38373.
 
 ## Targeted objective/tab repair
 
@@ -129,3 +129,17 @@ Three new regression cases exercise Start/Resume/Rescan, ambiguity/missing tabs,
 Stop/repeated activation and title decisions. Previous 81 tests unchanged.
 No isTrusted spoofing was used; pure title decisions are synthetic evidence,
 not a physical trusted-click end-to-end or authenticated platform claim.
+
+## Final tab identity correction
+
+Reviewed baseline dd89656848cf545db378378777b439381f13c75e. Removed tab-count
+inference. Exact unique label is active; different explicit numbered labels are
+distinct; generic/numbered and duplicate labels are ambiguous. Runtime acts only
+on distinct trusted selections; ambiguity leaves healthy playback untouched.
+No unverified native active CSS marker was invented. Title/text fallback retained.
+85 tests pass, all earlier 84 retained; controlled Chromium mouse input exercises
+actual trusted listener integration, transition acknowledgement, active re-click,
+ambiguous no-op and Stop. Media in that mouse test is mocked; no authenticated
+platform acceptance is claimed. Existing native media/HTML/artifact smoke passes.
+Coordinator, scheduler, completion/navigation gates and media adapters unchanged.
+Current sole artifact SHA-256: 04bcbfc826fd7c5c4d27f5116f536f6865b262871d612facdc8575081fa38373

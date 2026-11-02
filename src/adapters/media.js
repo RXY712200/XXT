@@ -65,6 +65,7 @@ export function startMedia(context, kind, { background = true } = {}) {
       if (!valid()) { dispose(); return; }
       if (call !== playSequence) return;
       inFlight = false;
+      if (started) context.note?.('media-running');
       if (media.error || media.paused && !media.ended) { failure('play-did-not-start'); return; }
       rate(); lastProgress = context.now(); lastPosition = media.currentTime;
       if (!started) { started = true; resolveStart(handle); }
@@ -95,7 +96,7 @@ export function startMedia(context, kind, { background = true } = {}) {
     if (!media.paused && time - lastProgress < 8000) return;
     if (time - lastRecovery < 3000) return;
     if (recoveries >= 3) { failure('recovery-exhausted'); return; }
-    recoveries++; lastRecovery = time; attempt();
+    recoveries++; lastRecovery = time; context.note?.('recovering-media'); attempt();
   }
   function monitor() {
     if (!valid() || ended || !activated) return;

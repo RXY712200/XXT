@@ -1,0 +1,10 @@
+{
+  "name": "XXT — DEVELOPMENT TEST BUILD",
+  "namespace": "https://github.com/RXY712200/XXT",
+  "version": "0.1.0",
+  "description": "Development test build; unsupported readers/live tasks remain manual. No authenticated compatibility claim.",
+  "match": ["https://*.chaoxing.com/mycourse/studentstudy*", "https://*.chaoxing.com/mooc2-ans/mycourse/studentstudy*"],
+  "grant": "none",
+  "run-at": "document-idle",
+  "noframes": true
+}

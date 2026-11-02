@@ -3,6 +3,7 @@ import { resolve, relative, dirname } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { execFileSync } from 'node:child_process';
 import assert from 'node:assert/strict';
+import { artifactPath, verifyArtifact } from './build-userscript.mjs';
 
 const root = resolve(import.meta.dirname, '..');
 function files(directory) {
@@ -17,8 +18,12 @@ for (const file of production) {
     assert.ok(specifier.startsWith('.'), `No runtime external dependency: ${relative(root, file)}`);
     assert.ok(!relative(resolve(root, 'src'), resolve(dirname(file), specifier)).startsWith('..'), 'No external reference-repository imports');
   }
-  assert.ok(!/\.(?:click|scrollTo|scrollBy)\s*\(|\bwindow\.open\s*\(|\bfetch\s*\(/.test(source), 'No unauthorized browser/navigation actions');
+  const nativePort = relative(root, file).replaceAll('\\', '/') === 'src/runtime/native-navigation.js';
+  assert.ok(!/\.(?:scrollTo|scrollBy)\s*\(|\bwindow\.open\s*\(|\bfetch\s*\(/.test(source), 'No unauthorized browser/network actions');
+  if (!nativePort) assert.ok(!/\.click\s*\(/.test(source), 'Catalog activation stays in native navigation port');
   if (relative(root, file).replaceAll('\\', '/') !== 'src/adapters/media.js') assert.ok(!/\.(?:play|pause)\s*\(/.test(source), 'Media effects stay in shared adapter');
   await import(pathToFileURL(file));
 }
-console.log(`PASS syntax: ${checked.length} files; production imports: ${production.length}; no external runtime dependency or unauthorized browser actions`);
+execFileSync(process.execPath, ['--check', artifactPath]);
+verifyArtifact();
+console.log(`PASS syntax: ${checked.length + 1} files; production imports: ${production.length}; exact generated artifact; no external runtime dependency or unauthorized browser actions`);

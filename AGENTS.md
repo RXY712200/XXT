@@ -9,11 +9,10 @@
   If identity, branch, baseline or canonical paths disagree, stop and report.
 - Read `docs/HANDOFF.md`, `docs/MASTER_PLAN.md` and the relevant feature rows first.
   HANDOFF is the authoritative resumption entry point; recheck its Git claims.
-- Phase III is accepted for scoped implementation at
-  `64b67cb29ed95ee03946775f43c8b9bee29c9b76`, not authenticated compatibility.
-  Current authorization covers Phase IV, Steps 07/08 together. Stop after its
-  delivery; Phase V needs independent acceptance and new explicit authorization.
-  Preserve the fixed five-phase / ten-step plan.
+- Phase IV is accepted at `3fc8021a7b51d0770fbf7931a0d2aa548213e3e1`.
+  Current authorization covers Phase V Steps 09/10 in one implementation commit.
+  Stop after delivery; independent acceptance and explicit user authorization are
+  required before real-user acceptance/release. Preserve five phases / ten steps.
 - Stop an affected portion when a protected decision must change. Report the
   concrete dependency for ChatGPT; do not silently alter the contract.
 
@@ -53,10 +52,13 @@
   do not establish real compatibility. Report PARTIAL/FAIL when warranted.
 - Reuse focused tests. Add meaningful regression cases, not combinatorial coverage
   for its own sake. Keep failures visible and explain approved expectation changes.
-- Phase IV permits evidenced native HTML reading, mixed-task continuation and
-  conservative live/assessment/recognition-only integration. Unsupported platform
-  structures remain disabled. No pacing/settings UI, production packaging or release.
-  Future build/installable paths require an approved canonical-file contract.
+- Phase V permits controlled browser integration, Chinese UI, local settings/
+  Stop/rest, sanitized diagnostics and development userscript generation. No stable
+  claim, Release/tag/deployment or website upload is authorized.
+- Canonical production: existing ES modules under `D:\XXT\src`, entry
+  `src/entry.js`, metadata `userscript/metadata.json`. Sole generated installable:
+  `D:\XXT\dist\XXT.user.js`. Never hand-edit it. Regenerate with `npm run build`;
+  check `npm run verify:artifact` and exact SHA-256. No silent alternative or companion.
 - Update HANDOFF after each authorized delivery: phase, acceptance, baseline,
   deliverables, blockers, tests, protected decisions and next authorization.
   Keep it under 200 lines. Obtain the latest SHA from `git rev-parse HEAD`; do not

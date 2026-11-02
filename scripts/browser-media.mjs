@@ -26,7 +26,15 @@ try {
   });
   socket = new WebSocket(endpoint); await new Promise((resolve, reject) => { socket.onopen = resolve; socket.onerror = reject; });
   let id = 0, loaded; const requests = new Map();
-  socket.onmessage = event => { const response = JSON.parse(event.data); if (response.method === 'Page.loadEventFired') loaded?.(); const request = requests.get(response.id); if (request) { requests.delete(response.id); response.error ? request.reject(Error(response.error.message)) : request.resolve(response.result); } };
+  socket.onmessage = event => {
+    const response = JSON.parse(event.data);
+    if (response.method === 'Fetch.requestPaused') {
+      send('Fetch.fulfillRequest', { requestId: response.params.requestId, responseCode: 200,
+        responseHeaders: [{name:'Content-Type',value:'text/html'}], body: Buffer.from('<!doctype html><title>XXT synthetic intercepted course</title><body></body>').toString('base64') }, response.sessionId).catch(error => { throw error; });
+    }
+    if (response.method === 'Page.loadEventFired') loaded?.();
+    const request = requests.get(response.id); if (request) { requests.delete(response.id); response.error ? request.reject(Error(response.error.message)) : request.resolve(response.result); }
+  };
   const send = (method, params = {}, sessionId) => new Promise((resolve, reject) => { const key = ++id; requests.set(key, { resolve, reject }); socket.send(JSON.stringify({ id: key, method, params, ...(sessionId ? { sessionId } : {}) })); });
   const { targetId } = await send('Target.createTarget', { url: 'about:blank' });
   const { sessionId } = await send('Target.attachToTarget', { targetId, flatten: true });
@@ -90,6 +98,24 @@ try {
   console.log('PASS native Chrome HTML reader geometry/local-bottom smoke:',JSON.stringify(readerResult));
   console.log('Fixture is a generated WAV audio track in audio/video elements, not real course video.');
   console.log('Not authenticated Chaoxing, not a background OS/tab-switch test; synthetic ownership context, real media API/events.');
+  // Intercept the entire synthetic page before network access; no authenticated
+  // page, credentials, permission overrides or real platform response is used.
+  await send('Fetch.enable',{patterns:[{urlPattern:'https://mooc1.chaoxing.com/*',requestStage:'Request'}]},sessionId);
+  async function pageReady(action) {
+    const ready=new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(Error('synthetic product page timeout')),10000);loaded=()=>{clearTimeout(timer);resolve();};});
+    await action();await ready;
+  }
+  await pageReady(()=>send('Page.navigate',{url:'https://mooc1.chaoxing.com/mycourse/studentstudy?courseid=synthetic-test'},sessionId));
+  await send('Runtime.evaluate',{expression:`localStorage.setItem('xxt.state.v1',JSON.stringify({version:1,settings:{},stopped:true,restUntil:0,count:0,seen:[]}));`},sessionId);
+  const userscript=await readFile(resolve(root,'dist/XXT.user.js'),'utf8');
+  const installed=await send('Runtime.evaluate',{expression:userscript+'\nwindow.__testXXT=window.XXT;({paused:window.XXT.view().message,panels:document.querySelectorAll("#xxt-control").length});',returnByValue:true},sessionId);
+  assert.equal(installed.exceptionDetails,undefined);assert.equal(installed.result.value.panels,1);assert.match(installed.result.value.paused,/停止/);
+  const reinjected=await send('Runtime.evaluate',{expression:userscript+'\nwindow.__testXXT===window.XXT && document.querySelectorAll("#xxt-control").length===1;',returnByValue:true},sessionId);
+  assert.equal(reinjected.result.value,true);
+  await pageReady(()=>send('Page.reload',{},sessionId));
+  const reloaded=await send('Runtime.evaluate',{expression:userscript+'\n({paused:window.XXT.view().message,panels:document.querySelectorAll("#xxt-control").length});',returnByValue:true},sessionId);
+  assert.equal(reloaded.exceptionDetails,undefined);assert.equal(reloaded.result.value.panels,1);assert.match(reloaded.result.value.paused,/停止/);
+  console.log('PASS native Chrome generated artifact/UI duplicate-injection and persisted Stop/reload; synthetic intercepted page, no authenticated platform evidence.');
   await send('Browser.close');
 } finally {
   socket?.close(); child.kill(); await new Promise(resolve => server.close(resolve));

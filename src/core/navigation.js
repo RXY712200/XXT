@@ -54,6 +54,17 @@ export function createNavigationGate({ now, context, ttl = 5000 }) {
         result.evaluated.fresh.courseKey !== permit.courseKey || result.evaluated.fresh.lesson.key !== permit.lessonKey ||
         result.target.key !== permit.targetKey) return null;
       return Object.freeze({ ...permit, target: result.target });
+    },
+    renew(permit) {
+      const stored = permits.get(permit);
+      if (!stored || stored.used) return null;
+      const result = eligibility(permit.mode);
+      if (result.reason || result.c.inventory !== stored.inventory || result.c.generation !== permit.generation ||
+        result.c.inventory.revision !== permit.revision || result.evaluated.fresh.courseKey !== permit.courseKey ||
+        result.evaluated.fresh.lesson.key !== permit.lessonKey || result.target.key !== permit.targetKey) return null;
+      stored.used = true;
+      const renewed = Object.freeze({ ...permit, evidence: result.evaluated.fresh.lesson.credit, expires: now() + ttl });
+      permits.set(renewed, { inventory: stored.inventory, used: false }); return renewed;
     }
   });
 }

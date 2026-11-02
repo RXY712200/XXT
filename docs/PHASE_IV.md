@@ -1,4 +1,8 @@
-# Phase IV — Steps 07/08 candidate
+# Phase IV — historical Steps 07/08 evidence
+
+Accepted for scoped implementation at `3fc8021a7b51d0770fbf7931a0d2aa548213e3e1`.
+Authenticated compatibility remains unaccepted. Below preserves original evidence;
+current product integration is documented in PHASE_V.md.
 
 Starting/accepted Phase III SHA: `64b67cb29ed95ee03946775f43c8b9bee29c9b76`.
 Status PARTIAL: independently verifiable subset implemented; authenticated

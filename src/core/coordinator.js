@@ -6,7 +6,8 @@ import { inspectInventory } from '../platform/inventory.js';
 import { matchesMediaSource } from '../platform/media-source.js';
 
 /** No real adapters or browser effects are installed here. Ports must be explicit. */
-export function createCoordinator({ clock, adapters = {}, delayFor = () => 0, continueKnownAfterFailure = false, autoContinue = false } = {}) {
+export function createCoordinator({ clock, adapters = {}, delayFor = () => 0, continueKnownAfterFailure = false, autoContinue = false,
+  canStart = () => true, onLocalResult = () => {}, onBound = () => {}, onInvalidated = () => {} } = {}) {
   const scheduler = createScheduler(clock);
   const now = clock?.now || (() => Date.now());
   let inventory = null, records = [], generation = 0, stopped = false, destroyed = false;
@@ -24,6 +25,7 @@ export function createCoordinator({ clock, adapters = {}, delayFor = () => 0, co
     navigation?.abort.abort(); navigation = null;
     for (const record of records) if (![State.CANCELLED, State.PAUSED].includes(record.state)) transition(record, pause ? State.PAUSED : State.CANCELLED);
     diagnostic = reason;
+    onInvalidated(reason);
   }
   function bind(next) {
     if (destroyed) return false;
@@ -34,6 +36,7 @@ export function createCoordinator({ clock, adapters = {}, delayFor = () => 0, co
       transition(record, State.PENDING); return record;
     });
     diagnostic = stopped ? 'explicitly-stopped' : next.status;
+    onBound(next);
     return next.status === 'verified';
   }
   function valid() {
@@ -55,6 +58,7 @@ export function createCoordinator({ clock, adapters = {}, delayFor = () => 0, co
     if (token.record.state !== State.RUNNING) return false;
     transition(token.record, State.LOCAL_COMPLETED); transition(token.record, State.WAITING_PLATFORM);
     diagnostic = 'local-ended-not-platform-credit'; release(token);
+    try { onLocalResult(token.record.task); } catch { stopped = true; invalidate('result-persistence-failed', true); return false; }
     if (autoContinue) scheduler.request({ key: `${generation}:continue:${token.record.key}`, delay: 0,
       validate: () => generation === token.generation && valid() && !active && !navigation,
       execute: startNext, onInvalid: () => { if (generation === token.generation && !valid()) invalidate('continuation-context-invalid'); } });
@@ -82,6 +86,7 @@ export function createCoordinator({ clock, adapters = {}, delayFor = () => 0, co
       record = candidate; break;
     }
     if (!record) { diagnostic = 'waiting-platform-evidence'; return false; }
+    if (!canStart(record.task)) { diagnostic = 'start-deferred'; return false; }
     const adapter = adapters[record.kind];
     if (!adapter || typeof adapter.start !== 'function' || adapter.recognize?.(record.task) !== true) {
       transition(record, State.UNSUPPORTED); diagnostic = 'adapter-unavailable'; return false;
@@ -132,7 +137,7 @@ export function createCoordinator({ clock, adapters = {}, delayFor = () => 0, co
     });
     return true;
   }
-  function queueNavigation(permit, port, { delay = 0, acknowledgementMs = 3000 } = {}) {
+  function queueNavigation(permit, port, { delay = 0, acknowledgementMs = 3000, refresh = false } = {}) {
     if (navigation || active || !valid() || typeof port?.activate !== 'function' ||
       !Number.isSafeInteger(acknowledgementMs) || acknowledgementMs < 1 || acknowledgementMs > 30000) return false;
     const expectedGeneration = generation, source = inventory;
@@ -141,7 +146,8 @@ export function createCoordinator({ clock, adapters = {}, delayFor = () => 0, co
       onInvalid: () => invalidate('context-invalidated'),
       onError: () => { if (generation === expectedGeneration) invalidate('navigation-effect-failed', true); },
       execute() {
-        const authorization = gate.consume(permit);
+        const selected = refresh ? gate.renew(permit) : permit;
+        const authorization = gate.consume(selected);
         if (!authorization) { diagnostic = 'navigation-denied'; return; }
         const token = { abort: new AbortController() }; navigation = token;
         const timeoutKey = `${generation}:navigation-ack`;
@@ -191,6 +197,13 @@ export function createCoordinator({ clock, adapters = {}, delayFor = () => 0, co
     poll(); return true;
   }
   return Object.freeze({ bind, startNext, waitForMedia, snapshot: view, queueNavigation,
+    scheduleRuntime({ key, delay, execute }) {
+      const expected = generation;
+      if (stopped || destroyed) return false;
+      return scheduler.recurring({ key: `${generation}:runtime:${key}`, delay,
+        validate: () => !stopped && !destroyed && generation === expected,
+        execute, onError: () => { stopped = true; invalidate('runtime-error', true); } });
+    },
     navigationDecision: mode => gate.issue(mode),
     stop() { if (!destroyed) { stopped = true; invalidate('explicit-stop', true); } },
     contextChanged() { if (!destroyed) invalidate('context-changed'); },

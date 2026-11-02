@@ -1,5 +1,33 @@
 # Readiness — DEVELOPMENT / TEST ONLY
 
+## Current full runtime status / navigation continuity correction
+
+Baseline `7c5767b1fc9a724618a114cd2a755b9088012808`; independent acceptance pending.
+**137 PASS / 0 FAIL**, retaining all 125 baseline scenarios unchanged. Twelve new
+tests cover real-module/generated same-chapter optional-test deferral, continued
+credited learning without replay, current optional-test handoff without completion,
+bounded multi-test traversal, mandatory/unknown/restricted/verification barriers,
+unique/ambiguous catalog rebuilding, 2600ms content arrival, late/no/mismatched
+acknowledgement, throwing activation, queue rejection, expired permit, Stop in both
+phases, read-only countdowns, recovery/rest fields and bounded v1→v2 privacy checks.
+
+Gates: `npm test`, `npm run check` (49 syntax files / 30 imports),
+`npm ls --omit=dev` (empty), `npm run build`, `npm run verify:artifact`, and
+`node scripts/browser-media.mjs`. Generated `D:\XXT\dist\XXT.user.js` SHA-256:
+`e1716cafd3b8113b49bb3edc5164a40565154399e8e11846035a7ef4c0e22a8e`.
+Native smoke passes real generated media/policy/end, HTML geometry, generated
+ownership/Stop, trusted tabs, full runtime responsive visibility/hit-testing at
+1280x900 / 320x480, same-chapter handoff, declining actual countdown and trusted
+quick Stop. Course pages/media are synthetic/mocked, not authenticated evidence.
+
+Old v1 journal counts do not establish the historical real-world failure cause.
+The native acknowledgement default is still 3000ms, with bounded shared-scheduler
+observation rather than a blanket timeout increase. Real handlers, header/content
+loading order, longer network delays and actual native-control overlap remain
+unverified. Live trust/player binding and proprietary readers remain unsupported.
+No new grants, companion, reference writes, release or stable compatibility claim.
+Detailed ledger/schema: `NAVIGATION_STATUS_REPAIR.md`. Older sections are historical.
+
 ## Current prior-credit reconciliation
 
 Baseline `8c246e433cc68ae626a8600e570486598e3875bd`. Browser selection now follows

@@ -7,18 +7,25 @@ import { matchesMediaSource } from '../platform/media-source.js';
 
 /** No real adapters or browser effects are installed here. Ports must be explicit. */
 export function createCoordinator({ clock, adapters = {}, delayFor = () => 0, continueKnownAfterFailure = false, autoContinue = false,
-  canStart = () => true, onLocalResult = () => {}, onBound = () => {}, onInvalidated = () => {} } = {}) {
+  canStart = () => true, onLocalResult = () => {}, onBound = () => {}, onInvalidated = () => {}, onNavigationEvent = () => {} } = {}) {
   const scheduler = createScheduler(clock);
   const now = clock?.now || (() => Date.now());
   let inventory = null, records = [], generation = 0, stopped = false, destroyed = false;
   let active = null, navigation = null, diagnostic = 'no-inventory';
   let deferred = new Set();
+  let navigationStatus={stage:'idle',reason:'none',targetKey:null};
+  function navEvent(stage,reason='none') {
+    navigationStatus={...navigationStatus,stage,reason};
+    try{onNavigationEvent(stage,reason);}catch{/* Diagnostics cannot affect execution. */}
+  }
   const view = () => Object.freeze({ inventory, generation, stopped: stopped || destroyed,
-    active: Boolean(active || navigation), diagnostic,
+    active: Boolean(active || navigation), diagnostic, navigation:Object.freeze({...navigationStatus}),
     records: Object.freeze(records.map(({ task, ...record }) => Object.freeze({ ...record, history: Object.freeze([...record.history]) }))) });
-  const gate = createNavigationGate({ now, context: view });
+  const gate = createNavigationGate({ now, context: view, onEvent:navEvent });
 
   function invalidate(reason, pause = false) {
+    const hadNavigation=navigation||scheduler.snapshot().some(a=>a.key.endsWith(':navigate')&&a.status==='pending');
+    if(hadNavigation&&!['failed','timeout','cancelled','acknowledged'].includes(navigationStatus.stage))navEvent('cancelled',reason);
     generation++; scheduler.cancelAll();
     const previous = active; active = null;
     previous?.abort.abort();
@@ -32,6 +39,7 @@ export function createCoordinator({ clock, adapters = {}, delayFor = () => 0, co
     if (destroyed) return false;
     inspectInventory(next); // Reject forged snapshots before replacing an owned context.
     invalidate('inventory-replaced'); inventory = next;
+    navigationStatus={stage:'idle',reason:'none',targetKey:null};
     deferred = new Set();
     records = next.tasks.map(task => {
       const record = { task, key: task.key, kind: task.kind, state: State.DISCOVERED, history: [State.DISCOVERED] };
@@ -142,31 +150,43 @@ export function createCoordinator({ clock, adapters = {}, delayFor = () => 0, co
   }
   function queueNavigation(permit, port, { delay = 0, acknowledgementMs = 3000, refresh = false } = {}) {
     if (navigation || active || !valid() || typeof port?.activate !== 'function' ||
-      !Number.isSafeInteger(acknowledgementMs) || acknowledgementMs < 1 || acknowledgementMs > 30000) return false;
+      !Number.isSafeInteger(acknowledgementMs) || acknowledgementMs < 1 || acknowledgementMs > 30000) { navEvent('queue-rejected','queue-busy');return false; }
     const expectedGeneration = generation, source = inventory;
-    return scheduler.request({ key: `${generation}:navigate`, delay,
+    const queued=scheduler.request({ key: `${generation}:navigate`, delay,
       validate: () => generation === expectedGeneration && inventory === source && valid() && !active && !navigation,
       onInvalid: () => invalidate('context-invalidated'),
-      onError: () => { if (generation === expectedGeneration) invalidate('navigation-effect-failed', true); },
+      onError: () => { if (generation === expectedGeneration) { if(navigationStatus.stage!=='failed')navEvent('failed','navigation-effect-failed');invalidate('navigation-effect-failed', true); } },
       execute() {
+        navEvent('cooldown-expired');
         const selected = refresh ? gate.renew(permit) : permit;
         const authorization = gate.consume(selected);
-        if (!authorization) { diagnostic = 'navigation-denied'; return; }
+        if (!authorization) { diagnostic = 'navigation-denied';navEvent('failed',navigationStatus.reason==='none'?'permit-invalid':navigationStatus.reason);return; }
         const token = { abort: new AbortController() }; navigation = token;
         const timeoutKey = `${generation}:navigation-ack`;
         scheduler.request({ key: timeoutKey, delay: acknowledgementMs,
           validate: () => navigation === token && generation === expectedGeneration,
-          execute: () => { stopped = true; invalidate('navigation-unacknowledged', true); } });
-        return Promise.resolve(port.activate(authorization, { signal: token.abort.signal })).then(next => {
+          execute: () => { stopped = true;navEvent('timeout','navigation-unacknowledged');invalidate('navigation-unacknowledged', true); } });
+        return Promise.resolve(port.activate(authorization, { signal: token.abort.signal,
+          onStage(stage,reason){if(navigation===token&&generation===expectedGeneration)navEvent(stage,reason);},
+          observe(check){
+            const key=`${expectedGeneration}:navigation-observe`;
+            scheduler.recurring({key,delay:100,validate:()=>navigation===token&&generation===expectedGeneration&&!stopped&&!destroyed,
+              execute:check,onError:()=>{navEvent('failed','navigation-effect-failed');invalidate('navigation-effect-failed',true);}});
+            return ()=>scheduler.cancel(key);
+          }
+        })).then(next => {
           if (navigation !== token || generation !== expectedGeneration || stopped || destroyed) return;
           const fresh = inspectInventory(next);
           if (!fresh.valid || fresh.courseKey !== authorization.courseKey || fresh.lesson.key !== authorization.targetKey) {
-            stopped = true; invalidate('navigation-ack-mismatch', true); return;
+            stopped = true;navEvent('failed','navigation-ack-mismatch');invalidate('navigation-ack-mismatch', true);return;
           }
-          scheduler.cancel(timeoutKey); navigation = null; token.abort.abort(); bind(next); diagnostic = 'navigation-acknowledged';
+          scheduler.cancel(timeoutKey); navigation = null; token.abort.abort();bind(next);diagnostic = 'navigation-acknowledged';navEvent('acknowledged');
         });
       }
     });
+    if(queued){navigationStatus={stage:'queued',reason:'none',targetKey:permit?.targetKey||null};navEvent('queued');navEvent('cooldown-started');}
+    else navEvent('queue-rejected','queue-busy');
+    return queued;
   }
   // A missing inner player may appear inside an already uniquely owned attachment.
   // Never adopt changed owners, catalogs or lessons while waiting for readiness.
@@ -233,7 +253,7 @@ export function createCoordinator({ clock, adapters = {}, delayFor = () => 0, co
         execute, onError: () => { stopped = true; invalidate('runtime-error', true); } });
     },
     navigationDecision: mode => gate.issue(mode),
-    stop() { if (!destroyed) { stopped = true; invalidate('explicit-stop', true); } },
+    stop(reason='explicit-stop') { if (!destroyed) { stopped = true; invalidate(reason==='automatic-stop'?reason:'explicit-stop', true); } },
     contextChanged() { if (!destroyed) invalidate('context-changed'); },
     resume({ allowLoading = false } = {}) {
       if (destroyed || !inventory) return false;

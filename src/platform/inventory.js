@@ -1,9 +1,9 @@
 import { Credit, evidence, identity } from '../core/contracts.js';
 import { captureMediaSource, matchesMediaSource } from './media-source.js';
 import { recognizeSpecial } from './special.js';
+import { optionalAssessmentTitle, verificationTitle } from './fork-target.js';
 
 const inventories = new WeakMap();
-const optionalTitles = new Set(['章节测验', '章节测试', '本章自测']);
 const all = (node, selector) => [...node.querySelectorAll(selector)];
 const owned = (node, selector, boundary) => all(node, selector).filter(el => el.closest(boundary) === node);
 const text = node => (node?.getAttribute('title') || node?.textContent || '').trim();
@@ -68,9 +68,9 @@ function read(document) {
     const id = keyOf(node, tree), key = id && courseKey ? identity([courseKey, 'lesson', id]) : null;
     return Object.freeze({ key, id, node, ordinal, title: labels.length === 1 ? text(labels[0]) : '',
       chapterKey: ancestors[0] || null, ancestry: Object.freeze(ancestors),
-      optionalAssessment: labels.length === 1 && optionalTitles.has(text(labels[0])),
+      optionalAssessment: labels.length === 1 && optionalAssessmentTitle(text(labels[0])),
       assessmentLike: labels.length === 1 && /考试|测验|测试|自测|作业/.test(text(labels[0])),
-      restricted: node.getAttribute('aria-disabled') === 'true' || node.hasAttribute('disabled') || /未开放|锁定/.test(text(labels[0])),
+      restricted: Boolean(node.closest('[aria-disabled="true"],[disabled]')) || /未开放|锁定|未解锁|不可访问/.test(text(labels[0])) || verificationTitle(text(labels[0])),
       credit: credit(node, key, 'lesson', '.posCatalog_select') });
   });
   if (catalog.some(item => !item.key || !item.title)) hazards.push('ambiguous-lesson-identity');

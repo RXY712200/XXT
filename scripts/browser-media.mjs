@@ -79,7 +79,9 @@ try {
       const context={task:{owner:frame,kind:'document',identity:'verified'},signal:abort.signal,isCurrent:()=>!abort.signal.aborted,now:()=>Date.now(),
         schedule:action=>scheduler.request({...action,validate:()=>!abort.signal.aborted}),scheduleRecurring:action=>scheduler.recurring({...action,validate:()=>!abort.signal.aborted}),
         cancelScheduled:key=>scheduler.cancel(key),done(){readingDone++;clearTimeout(timeout);resolve();},fail(reason){clearTimeout(timeout);reject(Error(reason));}};
-      createDocumentAdapter({random:()=>0.5}).start(context).then(handle=>handle.activate(),reject);
+      // Fixed broad sampling steps keep this geometry-only check independent of
+      // subpixel rounding near the existing reader's one-pixel bottom tolerance.
+      createDocumentAdapter({random:()=>0,interval:()=>1000}).start(context).then(handle=>handle.activate(),reject);
     });
     const readerResult={localDone:readingDone,top:viewer.scrollTop,range:viewer.scrollHeight-viewer.clientHeight};
     abort.abort();scheduler.cancelAll();frame.remove();return {mediaResults,readerResult};
@@ -166,6 +168,34 @@ try {
   const restored=await evaluate(`({state:window.XXT.view().taskState,local:window.XXT.view().localDone,credit:window.XXT.view().platformConfirmed,plays:window.__tabs.rebuilt,text:document.querySelector('#xxt-control').shadowRoot.querySelector('#status').textContent})`);
   assert.equal(restored.state,'RESTORED_WAITING_PLATFORM');assert.equal(restored.local,true);assert.equal(restored.credit,false);assert.equal(restored.plays,1);assert.match(restored.text,/已恢复本地结束记录/);
   console.log('PASS native Chromium missing-frame recovery and persisted local-wait UI; real DOM/storage, mocked media, no authenticated evidence.');
+  const handoffHTML=await readFile(resolve(root,'fixtures/synthetic/completed-assessment-handoff.html'),'utf8');
+  const prepareHandoff=`()=>{
+    window.XXT?.dispose();document.body.innerHTML=${JSON.stringify(handoffHTML)};
+    for(const key of ['xxt.partial-session.v1','xxt.decisions.v1'])localStorage.removeItem(key);sessionStorage.removeItem('xxt.unattended-recovery.v1');
+    localStorage.setItem('xxt.state.v1',JSON.stringify({version:1,settings:{delays:true,minMs:2000,maxMs:2000},stopped:false,count:0,seen:[],restUntil:0}));
+    window.__handoff={clicks:0,plays:0};
+    window.__handoffContent=name=>{const d=document.querySelector('iframe[info=card]').contentDocument;d.body.innerHTML='<section class="ans-attach-ct"><span class="ans-job-icon ans-job-finished"></span><iframe class="ans-attach-online ans-insertvideo-online" id="owned-'+name+'"></iframe></section>';const inner=d.querySelector('iframe').contentDocument,m=inner.createElement('video');m.id='video_html5_api';m.preload='none';m.src='https://invalid.example/'+name;m.play=()=>{window.__handoff.plays++;return Promise.resolve();};m.pause=()=>{};inner.body.append(m);};
+    window.__handoffContent('source');document.getElementById('learning').onclick=()=>{window.__handoff.clicks++;document.querySelector('.posCatalog_active').classList.remove('posCatalog_active');document.getElementById('learning').classList.add('posCatalog_active');setTimeout(()=>window.__handoffContent('learning'),700);};
+    const native=document.createElement('button');native.id='synthetic-native-control';native.textContent='原生导航';native.style='position:fixed;right:8px;bottom:8px;width:120px;height:28px';document.body.append(native);
+  }`;
+  await evaluate(`(${prepareHandoff})()`);await evaluate(userscript);await until(`window.XXT.view().deadlineKind==='navigation'`);
+  const before=await evaluate('window.XXT.view().remainingMs');await evaluate('new Promise(r=>setTimeout(r,300))');const after=await evaluate('window.XXT.view().remainingMs');assert.ok(after<before&&after>0);
+  for(const [width,height] of [[1280,900],[320,480]]){
+    await send('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:false},sessionId);
+    const layout=await evaluate(`(()=>{const top=document.querySelector('#xxt-control'),bottom=document.querySelector('#xxt-notice'),r=top.shadowRoot,q=bottom.shadowRoot;r.querySelector('details').open=true;const a=top.getBoundingClientRect(),b=bottom.getBoundingClientRect(),control=document.getElementById('synthetic-native-control'),c=control.getBoundingClientRect();return {inside:b.left>=0&&b.top>=0&&b.right<=innerWidth&&b.bottom<=innerHeight,separate:a.bottom<=b.top,fields:[...q.querySelectorAll('dl>div')].filter(n=>!n.hidden).every(n=>{const x=n.getBoundingClientRect();return x.top>=b.top&&x.bottom<=b.bottom;}),nativeHit:document.elementFromPoint(c.left+c.width/2,c.top+c.height/2)===control,quickHit:document.elementFromPoint(b.left+20,b.bottom-15)===bottom,closedByDefault:!r.querySelector('#features').open};})()`);
+    if(!layout.inside)console.log('Runtime bounds:',await evaluate(`({rect:document.querySelector('#xxt-notice').getBoundingClientRect().toJSON(),innerWidth,innerHeight,box:getComputedStyle(document.querySelector('#xxt-notice').shadowRoot.querySelector('#runtime')).width})`));
+    for(const [field,value] of Object.entries(layout))assert.equal(value,true,`${width}x${height} ${field}: ${JSON.stringify(layout)}`);
+    console.log('PASS full runtime responsive/hit-test:',width,height,JSON.stringify(layout));
+  }
+  await until(`JSON.parse(window.XXT.exportDiagnostics()).events.some(e=>e.stage==='acknowledged')`);
+  const handoff=await evaluate(`({clicks:window.__handoff.clicks,plays:window.__handoff.plays,current:document.querySelector('.posCatalog_active').id,unfinished:document.querySelector('#assessment input').value,credit:window.XXT.view().platformConfirmed})`);
+  assert.deepEqual(handoff,{clicks:1,plays:0,current:'learning',unfinished:'1',credit:false});
+  await evaluate(`(${prepareHandoff})()`);await evaluate(userscript);await until(`window.XXT.view().deadlineKind==='navigation'`);
+  const stopPoint=await evaluate(`(()=>{const b=document.querySelector('#xxt-notice').shadowRoot.querySelector('button').getBoundingClientRect();return {x:b.left+b.width/2,y:b.top+b.height/2};})()`);
+  await send('Input.dispatchMouseEvent',{type:'mousePressed',button:'left',clickCount:1,...stopPoint},sessionId);await send('Input.dispatchMouseEvent',{type:'mouseReleased',button:'left',clickCount:1,...stopPoint},sessionId);
+  await until(`window.XXT.view().runtimePhase==='stopped'`);await evaluate('new Promise(r=>setTimeout(r,2200))');
+  assert.equal(await evaluate('window.__handoff.clicks'),0);assert.equal(await evaluate('window.XXT.view().remainingMs'),null);
+  console.log('PASS native Chromium optional-assessment handoff, real deadline countdown and trusted quick Stop; synthetic DOM/mocked media only.');
   await send('Browser.close');
 } finally {
   socket?.close(); child.kill(); await new Promise(resolve => server.close(resolve));

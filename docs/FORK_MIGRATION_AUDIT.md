@@ -1,5 +1,44 @@
 # Fork migration audit — integrated follow-up / PARTIAL platform acceptance
 
+## Current runtime/status and optional-assessment correction
+
+Baseline `7c5767b1fc9a724618a114cd2a755b9088012808`. New actual reuse is the
+separable user-added `_targetAfter` / `_assessmentTarget` traversal and title
+predicates at pinned fork `351c08dc4d772908c3d098e8c9160be434bf1064` (1683–1706).
+Both methods were verified absent upstream `9a23b357875a72ed9bfd9e652257b0849a6855d7`.
+Adaptation: `platform/fork-target.js`, owned XXT descriptors, eight optional-node
+limit and explicit numbered-label normalization. No inherited playback method,
+reference history or private fixture is imported. `_navigationEligible` and
+`_queueNavigation` retain their XXT permit/credit equivalents; `_navigationPreview`
+deadline semantics are adapted into a pure runtime presentation, not another timer.
+
+Fresh verified source credit can defer exact optional tests and select learning
+within the same or next chapter. The current isolated optional-test handoff also
+supports same-chapter learning; assessments stay unfinished and are never logged
+as independently completed. Unknown/mandatory/verification/restricted boundaries
+still block. Renew/consume includes the same deferred-node sequence; existing
+branded single-use/TTL/identity checks remain. No guessed URL or completion write.
+
+Native port now records call versus return versus target/content acknowledgement,
+supports safe unique node reconstruction, and observes nested document loading via
+load/mutation plus same-scheduler 100ms checks bounded by the original deadline.
+Default 3000ms is retained: 2600ms arrival passes; after-deadline content cannot
+revive a cancelled route. Queue rejection is not recorded as successful queuing.
+Bottom-right holds the full runtime status and actual countdown; settings/export
+remain top-right. Diagnostics v2 migrates clean v1 records without inventing missing
+reason/click evidence. See `NAVIGATION_STATUS_REPAIR.md` for exact schema and cases.
+
+137 tests pass: all 125 baseline scenarios retained unchanged, 12 new tests with
+real APIs and generated runtime. Native Chromium validates full responsive fields,
+pointer hits, actual countdown decrease, optional-test handoff and trusted quick
+Stop on controlled pages. Media/source/reader/recovery/partial/settings/replay
+implementations are frozen. Native geometry smoke sampling was fixed for timing
+stability; its exact-bottom assertion and production reader remain unchanged.
+
+The user's historical authenticated failure cause remains unestablished: v1 log
+counts cannot prove a click or accepted completion permit. No authenticated PASS,
+stable release, privilege expansion, companion or reference modification is claimed.
+
 ## Current reconciliation of restored local state and prior credit
 
 Reviewed baseline `8c246e433cc68ae626a8600e570486598e3875bd`. The three accepted

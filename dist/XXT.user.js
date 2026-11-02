@@ -27,7 +27,8 @@ const { createDocumentAdapter } = __require("src/adapters/document.js");
 const { createLiveAdapter } = __require("src/adapters/live.js");
 const { createNativeNavigation } = __require("src/runtime/native-navigation.js");
 const { createPreferences, sampleDelay } = __require("src/runtime/preferences.js");
-const { createDiagnostics } = __require("src/runtime/diagnostics.js");
+const { createDiagnostics, reasons, safeReason } = __require("src/runtime/diagnostics.js");
+const { runtimePresentation } = __require("src/runtime/presentation.js");
 const { mountPanel } = __require("src/ui/panel.js");
 const { evaluateCompletion } = __require("src/core/completion.js");
 const { objectiveVideoTab, activateObjectiveTab, videoTabIdentity } = __require("src/runtime/native-tabs.js");
@@ -45,9 +46,26 @@ function bootstrap(document, { clock, random = Math.random, storage, ui = true }
   const prefs = createPreferences(safeStorage, now);
   let durableStorage, recoveryStorage;
   try{durableStorage=window.localStorage;recoveryStorage=window.sessionStorage;}catch{durableStorage=recoveryStorage={getItem(){throw Error('denied');},setItem(){throw Error('denied');}};}
-  const log = createDiagnostics(durableStorage);
+  const journal = createDiagnostics(durableStorage,now);
+  const log={...journal,add(category,state,kind,details={}){
+    const snapshot=c?.snapshot(),record=snapshot?.records.find(r=>['READY','STARTING','RUNNING','UNRESOLVED','UNSUPPORTED'].includes(r.state))||snapshot?.records[0];
+    journal.add(category,state||record?.state,kind||record?.kind,{phase:stopped?'stopped':snapshot?.active?'running':'waiting',...details});
+  }};
   const partial=createPartialStore(durableStorage);let recovery, recoverySequence=0, explicitRecheck=false;
   let panel, app, c, stopped = prefs.snapshot().stopped || Boolean(prefs.snapshot().error), message = '等待识别', loadingSince = now(), disposed = false, signature = '', pendingContext = null, tabPending = null;
+  let failureCode='none';const eventSignatures=new Map();
+  function navigationEvent(stage,reason='none'){
+    const code=safeReason(reason),key=`${c?.snapshot().generation}|${stage}|${code}`;
+    if(eventSignatures.get(stage)!==key){
+      eventSignatures.set(stage,key);
+      log.add(stage.startsWith('completion-')?'credit':'navigation',null,null,{stage,reason:code,phase:['failed','timeout','cancelled'].includes(stage)?'stopped':['target-rejected','completion-observed','completion-validated'].includes(stage)?(c?.snapshot().active?'running':'waiting'):'navigating',
+        outcome:stage.includes('rejected')?'rejected':['failed','timeout'].includes(stage)?'failed':stage==='cancelled'?'cancelled':stage==='acknowledged'?'succeeded':stage==='queued'||stage==='cooldown-started'?'pending':['completion-validated','target-selected','permit-issued','permit-consumed','permit-renewed'].includes(stage)?'accepted':'observed',
+        deadlineKind:stage==='queued'||stage.startsWith('cooldown-')?'navigation':['native-activation','native-returned','destination-active','destination-content'].includes(stage)?'acknowledgement':'none',retry:recovery?.getStatus().attempts||0});
+    }
+    if(['failed','timeout','target-rejected','queue-rejected','permit-rejected','cancelled'].includes(stage))failureCode=code;
+    else if(stage==='queued'||stage==='acknowledged')failureCode='none';
+    if(stage==='failed'||stage==='timeout')message=`${reasons[code]}；请明确重新检测`;
+  }
   const settings = () => prefs.snapshot().settings;
   const wrap = (kind, factory) => ({ recognize: task => settings()[kind] && factory({ background: settings().background }).recognize(task),
     start: context => factory({ background: settings().background }).start(context) });
@@ -90,18 +108,27 @@ function bootstrap(document, { clock, random = Math.random, storage, ui = true }
     },
     canStart: () => !stopped && recovery?.getStatus().stage !== 'terminal' && settings().automation && !prefs.resting() &&
       (settings().continuation || !c.snapshot().records.some(localWait)),
+    onNavigationEvent:navigationEvent,
     onLocalResult(task) { partial.record(task);prefs.record(task.key, task.kind);recovery?.confirmProgress();log.add('outcome','WAITING_PLATFORM',task.kind); },
     onBound(next) {
       log.add('recognition');
+      failureCode='none';
       if(c && next.status==='verified')try{c.restorePartial(partial.bind(next,{recheck:explicitRecheck || !next.tasks.length && evaluateCompletion(next).lessonConfirmed}));}catch{halt('未解决附件范围已改变；请明确重扫');return;}
       if(c?.snapshot().records.some(r=>r.state==='RESTORED_WAITING_PLATFORM'))message='已恢复本地结束记录，等待平台独立确认';
       recovery?.cancel();recovery?.restore();arm();
     },
     onInvalidated(reason) {
       if (!c || stopped || disposed || reason === 'inventory-replaced') return;
-      if (!['context-invalidated','context-changed','continuation-context-invalid'].includes(reason)) { halt('执行或导航未确认：已暂停，请明确重扫');return; }
+      if (!['context-invalidated','context-changed','continuation-context-invalid'].includes(reason)) {
+        const code=['failed','timeout'].includes(c.snapshot().navigation.stage)?safeReason(c.snapshot().navigation.reason):safeReason(reason);
+        halt(`${reasons[code]}；已暂停，请明确重扫`,true,code);return;
+      }
       const previous = c.snapshot().inventory, next = reader.scan(document);
       recovery?.cancel();
+      if(next.status==='unsafe'||next.status==='unsupported'){
+        const code=next.hazards.includes('verification-required')?'verification-required':'context-invalidated';
+        halt(`${reasons[code]}；请明确重扫`,true,code);return;
+      }
       if (loadingReplacement(previous,next)) {
         pendingContext={previous,courseKey:previous.courseKey,lessonKey:previous.lesson.key,sameLesson:true,until:now()+10000};
         if(!recovery.beginReadinessWait()){
@@ -140,8 +167,8 @@ function bootstrap(document, { clock, random = Math.random, storage, ui = true }
     identity(){const s=reader.scan(document);return (s.status==='verified'||pendingContext?.sameLesson&&loadingReplacement(pendingContext.previous,s))&&s.courseKey&&s.lesson?.key?JSON.stringify([s.courseKey,s.lesson.key]):null;},
     safeLoading(){return !stopped && pendingContext?.sameLesson && loadingReplacement(pendingContext.previous,reader.scan(document));},
     safe(){const s=reader.scan(document);return !stopped&&s.status==='verified'&&!s.assessment&&s.tasks.every(t=>['video','audio','document'].includes(t.kind))&&!(c.snapshot().inventory?.tasks.some(t=>['unknown','assessment'].includes(t.kind)));},
-    notice(text){message=text;panel?.render();},fail(text){
-      if(recovery?.getStatus().stage==='terminal'){stopped=true;c.stop();message=text;log.add('recovery','PAUSED');panel?.render();}
+    notice(text){message=text;log.add('recovery',null,null,{phase:'recovering',reason:'readiness',retry:recovery?.getStatus().attempts||0});panel?.render();},fail(text){
+      if(recovery?.getStatus().stage==='terminal'){stopped=true;failureCode='terminal-recovery';c.stop();message=text;log.add('recovery','PAUSED',null,{phase:'stopped',reason:'terminal-recovery',retry:recovery.getStatus().attempts});panel?.render();}
       else halt(text);
     },canReload:()=>false,
     fingerprint(){const s=reader.scan(document);return JSON.stringify([s.courseKey,s.lesson?.key,s.catalog.map(t=>t.key)]);},
@@ -149,8 +176,8 @@ function bootstrap(document, { clock, random = Math.random, storage, ui = true }
     retry(){const next=reader.scan(document);if(next.status==='verified'){c.bind(next);c.startNext();}else halt('恢复时内容未就绪');}
   });
   const port = createNativeNavigation(document, reader, () => c.snapshot().inventory);
-  function halt(reason, persist = true) {
-    stopped = true; pendingContext=null;c.stop(); message = reason; log.add('stop');
+  function halt(reason, persist = true, code='manual-required') {
+    stopped = true;failureCode=code;pendingContext=null;c.stop(code==='explicit-stop'?'explicit-stop':'automatic-stop');message = reason;log.add('stop',null,null,{reason:safeReason(code),phase:'stopped'});
     recovery?.markExplicitStop();
     if (persist) try { prefs.stop(); } catch { message = '本地存储失败：已安全停止'; }
     panel?.render();
@@ -162,6 +189,10 @@ function bootstrap(document, { clock, random = Math.random, storage, ui = true }
     if (c.snapshot().diagnostic === 'navigation-denied') { halt('导航许可已失效，请重新确认平台信用后重扫'); return; }
     const state = c.snapshot(), snapshot = state.inventory;
     if (!snapshot) return;
+    const completion=evaluateCompletion(snapshot);
+    const contradictory=completion.fresh.lesson?.credit.status==='contradictory'||completion.fresh.tasks.some(t=>t.credit.status==='contradictory');
+    if(completion.fresh.lesson?.credit.status==='confirmed'||completion.fresh.lesson?.credit.reason==='conflicting-markers')navigationEvent('completion-observed',completion.safe?'none':contradictory?'contradictory-credit':'unsafe-completion-context');
+    if(completion.lessonConfirmed)navigationEvent('completion-validated');
     if (tabPending) {
       const next = reader.scan(document), title = document.querySelector('.prev_title');
       if (next.courseKey !== tabPending.courseKey || next.lesson?.key !== tabPending.lessonKey || next.status === 'unsafe') { tabPending = null; halt('页签归属变化：请手动重扫'); return; }
@@ -197,7 +228,7 @@ function bootstrap(document, { clock, random = Math.random, storage, ui = true }
     const fresh = inspectInventory(snapshot);
     if (!fresh.valid) {
       const next = reader.scan(document);
-      if (next.status === 'unsafe' || next.status === 'unsupported') { halt('页面验证或任务归属不明确：需人工处理'); return; }
+      if (next.status === 'unsafe' || next.status === 'unsupported') { const code=next.hazards.includes('verification-required')?'verification-required':'context-invalidated';halt(`${reasons[code]}；需人工处理`,true,code);return; }
       const different = next.courseKey && next.lesson?.key && (next.courseKey !== snapshot.courseKey || next.lesson.key !== snapshot.lesson?.key);
       if (different) { c.contextChanged(); return; }
       if (loadingReplacement(snapshot,next)) { c.contextChanged();return; }
@@ -217,11 +248,12 @@ function bootstrap(document, { clock, random = Math.random, storage, ui = true }
       // neither restored nor current local-ended records establish that credit.
       const decision = settings().navigation && !state.active ? c.navigationDecision(fresh.assessment === 'optional' ? 'assessment' : evaluateCompletion(snapshot).lessonConfirmed ? 'prior-credit' : 'completed') : null;
       if (decision?.allowed) {
-        const target=fresh.catalog.find(t=>t.key===decision.permit.targetKey),category=decision.permit.mode==='assessment'?'assessment':target?.chapterKey!==fresh.lesson.chapterKey?'nextChapter':'nextLesson';
-        c.queueNavigation(decision.permit, port, { delay: prefs.consumeRest()?0:sampleDelay(settings(),random,category), refresh: true }); log.add('navigation'); message = '等待已验证导航';
+        const target=fresh.catalog.find(t=>t.key===decision.permit.targetKey),category=decision.permit.mode==='assessment'||decision.permit.deferred.length?'assessment':target?.chapterKey!==fresh.lesson.chapterKey?'nextChapter':'nextLesson';
+        const queued=c.queueNavigation(decision.permit, port, { delay: prefs.consumeRest()?0:sampleDelay(settings(),random,category), refresh: true });
+        message=queued?'等待已验证导航':'导航请求未排队：已有动作或上下文失效';
       } else if (!state.active && !state.records.some(r => ['FAILED','UNRESOLVED','UNSUPPORTED','PAUSED','CANCELLED'].includes(r.state))) c.startNext();
       const current = c.snapshot();
-      message = current.records.some(r => r.kind === 'live' && r.state === 'RUNNING') ? '直播入口需真实手动操作；结果未验证' :
+      message = c.actions().some(a=>a.key.endsWith(':navigate')&&a.status==='pending') ? '平台完成已核验，等待原生导航' : current.records.some(r => r.kind === 'live' && r.state === 'RUNNING') ? '直播入口需真实手动操作；结果未验证' :
         current.records.some(r => ['FAILED','UNRESOLVED','UNSUPPORTED'].includes(r.state)) ? '失败或不支持：需人工处理' :
         current.active ? '执行或延迟等待中' : current.records.some(r=>r.state==='RESTORED_WAITING_PLATFORM') ? '已恢复本地结束记录，等待平台独立确认' : '等待平台信用或人工操作';
     }
@@ -229,8 +261,9 @@ function bootstrap(document, { clock, random = Math.random, storage, ui = true }
     if (nextSignature !== signature) {
       signature = nextSignature;
       const task = after.records.find(r => ['READY','STARTING','RUNNING','UNRESOLVED','UNSUPPORTED'].includes(r.state));
-      log.add(fresh.lesson?.credit.status === 'confirmed' ? 'credit' : after.diagnostic === 'recovering-media' ? 'recovery' :
-        ['FAILED','UNRESOLVED'].includes(task?.state) ? 'outcome' : task?.kind === 'live' || task?.state === 'UNSUPPORTED' ? 'manual' : 'selection',task?.state,task?.kind);
+      log.add(after.diagnostic === 'recovering-media' ? 'recovery' :
+        ['FAILED','UNRESOLVED'].includes(task?.state) ? 'outcome' : task?.kind === 'live' || task?.state === 'UNSUPPORTED' ? 'manual' : 'selection',task?.state,task?.kind,
+        {reason:['FAILED','UNRESOLVED','UNSUPPORTED'].includes(task?.state)?safeReason(after.diagnostic):'none',retry:recovery.getStatus().attempts});
     }
     panel?.render();
   }
@@ -246,7 +279,7 @@ function bootstrap(document, { clock, random = Math.random, storage, ui = true }
   app = Object.freeze({ start: run, resume: run, rescan() {
     if (stopped) { message = '停止状态已保留，请明确开始或恢复'; panel?.render(); return false; }
     return run();
-  }, stop: () => halt('已明确停止；重载不会自动恢复'),
+  }, stop: () => halt('已明确停止；重载不会自动恢复',true,'explicit-stop'),
     deferUnknown(){
       const inventory=c.snapshot().inventory;
       if(stopped||!inventory||!c.deferUnknown(inventory,keys=>partial.defer(inventory,keys)))throw Error('unsafe-or-busy-defer');
@@ -264,11 +297,14 @@ function bootstrap(document, { clock, random = Math.random, storage, ui = true }
     exportDiagnostics: () => log.export(), clearDiagnostics() { log.clear(); },
     view() {
       const state = c.snapshot(), task = state.inventory?.tasks.find(t => state.records.some(r => r.key === t.key && ['READY','STARTING','RUNNING','UNRESOLVED','UNSUPPORTED'].includes(r.state))) ||
-        state.inventory?.tasks.findLast(t => state.records.some(r => r.key === t.key && localWait(r)));
+        state.inventory?.tasks.findLast(t => state.records.some(r => r.key === t.key && localWait(r))) || state.inventory?.tasks[0];
+      const evaluation=state.inventory?evaluateCompletion(state.inventory):null;
+      const runtime=runtimePresentation({state,task,evaluation,actions:c.actions(),now:now(),stopped:stopped||state.stopped,pendingContext,tabPending,
+        recovery:recovery?.getStatus(),restUntil:prefs.snapshot().restUntil,loadingSince,failureCode});
       return Object.freeze({ settings: settings(), message, task: task ? { kind: task.recognition?.kind || task.kind, ordinal: task.ordinal, recognitionOnly: Boolean(task.recognition) } : null, total: state.records.length,
         taskState: state.records.find(r => r.key === task?.key)?.state,
-        localDone: Boolean(state.inventory && inspectInventory(state.inventory).valid && state.records.some(r => r.key === task?.key && localWait(r))), platformConfirmed: state.inventory ? evaluateCompletion(state.inventory).lessonConfirmed : false,
-        delayed: c.actions().some(a => a.status === 'pending' && (a.key.includes(':start:') || a.key.endsWith(':navigate'))), restRemaining: Math.max(0,prefs.snapshot().restUntil-now()) });
+        localDone: Boolean(evaluation?.fresh.valid && state.records.some(r => r.key === task?.key && localWait(r))), platformConfirmed: evaluation?.lessonConfirmed||false,
+        delayed: runtime.remainingMs!==null&&!stopped, ...runtime });
     },
     dispose() { if (disposed) return; disposed = true; recovery?.dispose();document.removeEventListener('click',manualTab,true); session.dispose(); panel?.destroy(); if (window[singleton] === app) delete window[singleton]; if (window.XXT === app) delete window.XXT; }
   });
@@ -312,8 +348,8 @@ Object.assign(__exports, {bootstrap});
 const { Credit, evidence, identity } = __require("src/core/contracts.js");
 const { captureMediaSource, matchesMediaSource } = __require("src/platform/media-source.js");
 const { recognizeSpecial } = __require("src/platform/special.js");
+const { optionalAssessmentTitle, verificationTitle } = __require("src/platform/fork-target.js");
 const inventories = new WeakMap();
-const optionalTitles = new Set(['章节测验', '章节测试', '本章自测']);
 const all = (node, selector) => [...node.querySelectorAll(selector)];
 const owned = (node, selector, boundary) => all(node, selector).filter(el => el.closest(boundary) === node);
 const text = node => (node?.getAttribute('title') || node?.textContent || '').trim();
@@ -378,9 +414,9 @@ function read(document) {
     const id = keyOf(node, tree), key = id && courseKey ? identity([courseKey, 'lesson', id]) : null;
     return Object.freeze({ key, id, node, ordinal, title: labels.length === 1 ? text(labels[0]) : '',
       chapterKey: ancestors[0] || null, ancestry: Object.freeze(ancestors),
-      optionalAssessment: labels.length === 1 && optionalTitles.has(text(labels[0])),
+      optionalAssessment: labels.length === 1 && optionalAssessmentTitle(text(labels[0])),
       assessmentLike: labels.length === 1 && /考试|测验|测试|自测|作业/.test(text(labels[0])),
-      restricted: node.getAttribute('aria-disabled') === 'true' || node.hasAttribute('disabled') || /未开放|锁定/.test(text(labels[0])),
+      restricted: Boolean(node.closest('[aria-disabled="true"],[disabled]')) || /未开放|锁定|未解锁|不可访问/.test(text(labels[0])) || verificationTitle(text(labels[0])),
       credit: credit(node, key, 'lesson', '.posCatalog_select') });
   });
   if (catalog.some(item => !item.key || !item.title)) hazards.push('ambiguous-lesson-identity');
@@ -621,6 +657,35 @@ function recognizeSpecial(owner, metadata = {}) {
 
 Object.assign(__exports, {recognizeSpecial});
 },
+"src/platform/fork-target.js": function(__exports, __require) {
+// Adapted separable user-authored _targetAfter/_assessmentTarget and title
+// predicates, fork 351c08dc4d772908c3d098e8c9160be434bf1064:1683-1706.
+// XXT adds bounded traversal and uses owned catalog descriptors, never URLs.
+const verificationTitle = text => /验证码|验证|认证|登录|人脸|captcha|authentication/i.test(text);
+const assessmentTitle = text => /测验|测试|自测|作业|考试|验证/.test(text);
+function optionalAssessmentTitle(text) {
+  const name=text.trim().replace(/^\d+(?:\.\d+)*\s+/, '');
+  return ['章节测验','章节测试','本章自测'].includes(name);
+}
+function targetAfter(catalog, sourceKey, includeSource=false) {
+  let index=catalog.findIndex(item=>item.key===sourceKey);
+  if(index<0||catalog.filter(item=>item.key===sourceKey).length!==1)return {reason:'source-not-unique'};
+  if(!includeSource)index++;
+  const deferred=[];
+  while(index<catalog.length && catalog[index].optionalAssessment){
+    const item=catalog[index];
+    if(deferred.length>=8)return {reason:'assessment-limit'};
+    if(!item.chapterKey||item.restricted||!item.node.isConnected||!optionalAssessmentTitle(item.title))return {reason:'assessment-boundary'};
+    deferred.push(item.key);index++;
+  }
+  const target=catalog[index];
+  if(!target||!target.key||target.restricted||!target.node.isConnected||assessmentTitle(target.title)||verificationTitle(target.title))return {reason:'no-eligible-target'};
+  if(deferred.length && (!target.chapterKey||!target.ancestry.includes(target.chapterKey)))return {reason:'uncertain-target-ancestry'};
+  return {target,deferred:Object.freeze(deferred)};
+}
+
+Object.assign(__exports, {verificationTitle,assessmentTitle,optionalAssessmentTitle,targetAfter});
+},
 "src/runtime/session.js": function(__exports, __require) {
 const { createCoordinator } = __require("src/core/coordinator.js");
 // Explicit assembly only: no browser boot, listeners, clicks or media adapters.
@@ -646,18 +711,25 @@ const { inspectInventory } = __require("src/platform/inventory.js");
 const { matchesMediaSource } = __require("src/platform/media-source.js");
 /** No real adapters or browser effects are installed here. Ports must be explicit. */
 function createCoordinator({ clock, adapters = {}, delayFor = () => 0, continueKnownAfterFailure = false, autoContinue = false,
-  canStart = () => true, onLocalResult = () => {}, onBound = () => {}, onInvalidated = () => {} } = {}) {
+  canStart = () => true, onLocalResult = () => {}, onBound = () => {}, onInvalidated = () => {}, onNavigationEvent = () => {} } = {}) {
   const scheduler = createScheduler(clock);
   const now = clock?.now || (() => Date.now());
   let inventory = null, records = [], generation = 0, stopped = false, destroyed = false;
   let active = null, navigation = null, diagnostic = 'no-inventory';
   let deferred = new Set();
+  let navigationStatus={stage:'idle',reason:'none',targetKey:null};
+  function navEvent(stage,reason='none') {
+    navigationStatus={...navigationStatus,stage,reason};
+    try{onNavigationEvent(stage,reason);}catch{/* Diagnostics cannot affect execution. */}
+  }
   const view = () => Object.freeze({ inventory, generation, stopped: stopped || destroyed,
-    active: Boolean(active || navigation), diagnostic,
+    active: Boolean(active || navigation), diagnostic, navigation:Object.freeze({...navigationStatus}),
     records: Object.freeze(records.map(({ task, ...record }) => Object.freeze({ ...record, history: Object.freeze([...record.history]) }))) });
-  const gate = createNavigationGate({ now, context: view });
+  const gate = createNavigationGate({ now, context: view, onEvent:navEvent });
 
   function invalidate(reason, pause = false) {
+    const hadNavigation=navigation||scheduler.snapshot().some(a=>a.key.endsWith(':navigate')&&a.status==='pending');
+    if(hadNavigation&&!['failed','timeout','cancelled','acknowledged'].includes(navigationStatus.stage))navEvent('cancelled',reason);
     generation++; scheduler.cancelAll();
     const previous = active; active = null;
     previous?.abort.abort();
@@ -671,6 +743,7 @@ function createCoordinator({ clock, adapters = {}, delayFor = () => 0, continueK
     if (destroyed) return false;
     inspectInventory(next); // Reject forged snapshots before replacing an owned context.
     invalidate('inventory-replaced'); inventory = next;
+    navigationStatus={stage:'idle',reason:'none',targetKey:null};
     deferred = new Set();
     records = next.tasks.map(task => {
       const record = { task, key: task.key, kind: task.kind, state: State.DISCOVERED, history: [State.DISCOVERED] };
@@ -781,31 +854,43 @@ function createCoordinator({ clock, adapters = {}, delayFor = () => 0, continueK
   }
   function queueNavigation(permit, port, { delay = 0, acknowledgementMs = 3000, refresh = false } = {}) {
     if (navigation || active || !valid() || typeof port?.activate !== 'function' ||
-      !Number.isSafeInteger(acknowledgementMs) || acknowledgementMs < 1 || acknowledgementMs > 30000) return false;
+      !Number.isSafeInteger(acknowledgementMs) || acknowledgementMs < 1 || acknowledgementMs > 30000) { navEvent('queue-rejected','queue-busy');return false; }
     const expectedGeneration = generation, source = inventory;
-    return scheduler.request({ key: `${generation}:navigate`, delay,
+    const queued=scheduler.request({ key: `${generation}:navigate`, delay,
       validate: () => generation === expectedGeneration && inventory === source && valid() && !active && !navigation,
       onInvalid: () => invalidate('context-invalidated'),
-      onError: () => { if (generation === expectedGeneration) invalidate('navigation-effect-failed', true); },
+      onError: () => { if (generation === expectedGeneration) { if(navigationStatus.stage!=='failed')navEvent('failed','navigation-effect-failed');invalidate('navigation-effect-failed', true); } },
       execute() {
+        navEvent('cooldown-expired');
         const selected = refresh ? gate.renew(permit) : permit;
         const authorization = gate.consume(selected);
-        if (!authorization) { diagnostic = 'navigation-denied'; return; }
+        if (!authorization) { diagnostic = 'navigation-denied';navEvent('failed',navigationStatus.reason==='none'?'permit-invalid':navigationStatus.reason);return; }
         const token = { abort: new AbortController() }; navigation = token;
         const timeoutKey = `${generation}:navigation-ack`;
         scheduler.request({ key: timeoutKey, delay: acknowledgementMs,
           validate: () => navigation === token && generation === expectedGeneration,
-          execute: () => { stopped = true; invalidate('navigation-unacknowledged', true); } });
-        return Promise.resolve(port.activate(authorization, { signal: token.abort.signal })).then(next => {
+          execute: () => { stopped = true;navEvent('timeout','navigation-unacknowledged');invalidate('navigation-unacknowledged', true); } });
+        return Promise.resolve(port.activate(authorization, { signal: token.abort.signal,
+          onStage(stage,reason){if(navigation===token&&generation===expectedGeneration)navEvent(stage,reason);},
+          observe(check){
+            const key=`${expectedGeneration}:navigation-observe`;
+            scheduler.recurring({key,delay:100,validate:()=>navigation===token&&generation===expectedGeneration&&!stopped&&!destroyed,
+              execute:check,onError:()=>{navEvent('failed','navigation-effect-failed');invalidate('navigation-effect-failed',true);}});
+            return ()=>scheduler.cancel(key);
+          }
+        })).then(next => {
           if (navigation !== token || generation !== expectedGeneration || stopped || destroyed) return;
           const fresh = inspectInventory(next);
           if (!fresh.valid || fresh.courseKey !== authorization.courseKey || fresh.lesson.key !== authorization.targetKey) {
-            stopped = true; invalidate('navigation-ack-mismatch', true); return;
+            stopped = true;navEvent('failed','navigation-ack-mismatch');invalidate('navigation-ack-mismatch', true);return;
           }
-          scheduler.cancel(timeoutKey); navigation = null; token.abort.abort(); bind(next); diagnostic = 'navigation-acknowledged';
+          scheduler.cancel(timeoutKey); navigation = null; token.abort.abort();bind(next);diagnostic = 'navigation-acknowledged';navEvent('acknowledged');
         });
       }
     });
+    if(queued){navigationStatus={stage:'queued',reason:'none',targetKey:permit?.targetKey||null};navEvent('queued');navEvent('cooldown-started');}
+    else navEvent('queue-rejected','queue-busy');
+    return queued;
   }
   // A missing inner player may appear inside an already uniquely owned attachment.
   // Never adopt changed owners, catalogs or lessons while waiting for readiness.
@@ -872,7 +957,7 @@ function createCoordinator({ clock, adapters = {}, delayFor = () => 0, continueK
         execute, onError: () => { stopped = true; invalidate('runtime-error', true); } });
     },
     navigationDecision: mode => gate.issue(mode),
-    stop() { if (!destroyed) { stopped = true; invalidate('explicit-stop', true); } },
+    stop(reason='explicit-stop') { if (!destroyed) { stopped = true; invalidate(reason==='automatic-stop'?reason:'explicit-stop', true); } },
     contextChanged() { if (!destroyed) invalidate('context-changed'); },
     resume({ allowLoading = false } = {}) {
       if (destroyed || !inventory) return false;
@@ -981,23 +1066,25 @@ Object.assign(__exports, {createScheduler});
 "src/core/navigation.js": function(__exports, __require) {
 const { Credit, State } = __require("src/core/contracts.js");
 const { evaluateCompletion } = __require("src/core/completion.js");
+const { targetAfter } = __require("src/platform/fork-target.js");
 /** Permits are private branded, short-lived, single-use decisions, never clicks. */
-function createNavigationGate({ now, context, ttl = 5000 }) {
+function createNavigationGate({ now, context, ttl = 5000, onEvent = () => {} }) {
   if (!Number.isSafeInteger(ttl) || ttl <= 0 || ttl > 30000) throw new RangeError('Invalid permit lifetime');
   const permits = new WeakMap();
+  const emit=(stage,reason='none')=>{try{onEvent(stage,reason);}catch{/* Observation never grants authority. */}};
   function eligibility(mode) {
     const c = context();
     if (c.stopped || c.active || !c.inventory) return { reason: 'inactive-or-busy-context' };
     const evaluated = evaluateCompletion(c.inventory), f = evaluated.fresh;
     if (!evaluated.safe || f.lesson?.restricted) return { reason: 'unsafe-completion-context' };
     const i = f.catalog.findIndex(item => item.key === f.lesson.key);
-    let target;
+    let selection;
     if (mode === 'assessment') {
       if (f.assessment !== 'optional' || f.tasks.length !== 1 || f.tasks[0].kind !== 'assessment') return { reason: 'not-isolated-optional-assessment' };
       const preceding = f.catalog.slice(0, i).filter(item => item.chapterKey === f.lesson.chapterKey);
-      if (!preceding.length || preceding.some(item => item.optionalAssessment || item.credit.status !== Credit.CONFIRMED)) return { reason: 'unverified-preceding-learning' };
-      target = f.catalog[i + 1];
-      if (!target || !target.chapterKey || target.chapterKey === f.lesson.chapterKey || target.assessmentLike) return { reason: 'uncertain-next-chapter' };
+      const learning=preceding.filter(item=>!item.optionalAssessment);
+      if (!learning.length || learning.some(item => item.assessmentLike || item.restricted || item.credit.status !== Credit.CONFIRMED)) return { reason: 'unverified-preceding-learning' };
+      selection=targetAfter(f.catalog,f.lesson.key,true);
     } else {
       if (!['completed', 'prior-credit'].includes(mode) || !evaluated.lessonConfirmed || f.assessment) return { reason: 'lesson-not-credited' };
       if (f.tasks.some(task => ['unknown', 'assessment'].includes(task.kind))) return { reason: 'unsupported-boundary' };
@@ -1006,45 +1093,54 @@ function createNavigationGate({ now, context, ttl = 5000 }) {
       if (mode === 'completed' && f.tasks.some(task => !evaluated.taskConfirmed.includes(task.key) &&
         !c.records.some(record => record.key === task.key && record.state === State.WAITING_PLATFORM))) return { reason: 'unfinished-local-task' };
       if (f.tasks.some(task => task.credit.status === Credit.INCOMPLETE)) return { reason: 'incomplete-task-evidence' };
-      target = f.catalog[i + 1];
+      selection=targetAfter(f.catalog,f.lesson.key);
     }
+    if(selection.reason)return {reason:selection.reason};
+    const {target,deferred}=selection;
     if (!target || target.restricted || !target.key || target.assessmentLike && !target.optionalAssessment) return { reason: 'no-eligible-target' };
     // A currently playing player cannot be abandoned by a pre-credit shortcut.
     if (f.documents.some(doc => [...doc.querySelectorAll('video,audio')].some(el => !el.paused && !el.ended || el.seeking))) return { reason: 'media-still-active' };
-    return { c, evaluated, target };
+    return { c, evaluated, target, deferred };
   }
   return Object.freeze({
     issue(mode = 'completed') {
       const result = eligibility(mode);
-      if (result.reason) return Object.freeze({ allowed: false, reason: result.reason });
-      const { c, evaluated, target } = result;
+      if (result.reason) { emit('target-rejected',result.reason);return Object.freeze({ allowed: false, reason: result.reason }); }
+      const { c, evaluated, target, deferred } = result;
+      if(evaluated.lessonConfirmed)emit('completion-validated');
+      emit('target-selected');
       const permit = Object.freeze({ courseKey: evaluated.fresh.courseKey, lessonKey: evaluated.fresh.lesson.key,
         revision: c.inventory.revision, generation: c.generation, targetKey: target.key, mode, expires: now() + ttl,
-        evidence: evaluated.fresh.lesson.credit });
+        evidence: evaluated.fresh.lesson.credit, deferred });
       permits.set(permit, { inventory: c.inventory, used: false });
+      emit('permit-issued');
       return Object.freeze({ allowed: true, permit });
     },
     consume(permit) {
       const stored = permits.get(permit);
-      if (!stored || stored.used) return null;
+      if (!stored || stored.used) { emit('permit-rejected','permit-invalid');return null; }
       stored.used = true;
       const result = eligibility(permit.mode);
       if (result.reason || now() >= permit.expires || result.c.inventory !== stored.inventory ||
         result.c.generation !== permit.generation || result.c.inventory.revision !== permit.revision ||
         result.evaluated.fresh.courseKey !== permit.courseKey || result.evaluated.fresh.lesson.key !== permit.lessonKey ||
-        result.target.key !== permit.targetKey) return null;
+        result.target.key !== permit.targetKey || JSON.stringify(result.deferred)!==JSON.stringify(permit.deferred)) {
+        emit('permit-rejected',now()>=permit.expires?'permit-expired':result.reason||'permit-invalid');return null;
+      }
+      emit('permit-consumed');
       return Object.freeze({ ...permit, target: result.target });
     },
     renew(permit) {
       const stored = permits.get(permit);
-      if (!stored || stored.used) return null;
+      if (!stored || stored.used) { emit('permit-rejected','permit-invalid');return null; }
       const result = eligibility(permit.mode);
       if (result.reason || result.c.inventory !== stored.inventory || result.c.generation !== permit.generation ||
         result.c.inventory.revision !== permit.revision || result.evaluated.fresh.courseKey !== permit.courseKey ||
-        result.evaluated.fresh.lesson.key !== permit.lessonKey || result.target.key !== permit.targetKey) return null;
+        result.evaluated.fresh.lesson.key !== permit.lessonKey || result.target.key !== permit.targetKey ||
+        JSON.stringify(result.deferred)!==JSON.stringify(permit.deferred)) { emit('permit-rejected',result.reason||'permit-invalid');return null; }
       stored.used = true;
       const renewed = Object.freeze({ ...permit, evidence: result.evaluated.fresh.lesson.credit, expires: now() + ttl });
-      permits.set(renewed, { inventory: stored.inventory, used: false }); return renewed;
+      permits.set(renewed, { inventory: stored.inventory, used: false });emit('permit-renewed');return renewed;
     }
   });
 }
@@ -1327,30 +1423,48 @@ Object.assign(__exports, {describeLive,createLiveAdapter,observeReplay});
 const { inspectInventory } = __require("src/platform/inventory.js");
 /** The only catalog effect port. It never constructs URLs or claims click success. */
 function createNativeNavigation(document, reader, currentInventory) {
-  return Object.freeze({ activate(authorization, { signal }) {
-    const previous = currentInventory(), fresh = inspectInventory(previous), target = authorization.target;
+  return Object.freeze({ activate(authorization, { signal, onStage=()=>{}, observe }) {
+    const emit=(stage,reason='none')=>{try{onStage(stage,reason);}catch{/* Read-only observation. */}};
+    const previous = currentInventory(), fresh = inspectInventory(previous), original = authorization.target;
+    const target=fresh.catalog.find(item=>item.key===authorization.targetKey);
     if (!fresh.valid || fresh.courseKey !== authorization.courseKey || fresh.lesson.key !== authorization.lessonKey ||
-      !target.node.isConnected || target.node.ownerDocument !== document ||
-      fresh.catalog.filter(item => item.key === target.key && item.node === target.node && !item.restricted).length !== 1) throw Error('native-target-invalid');
+      !target || !target.node.isConnected || target.node.ownerDocument !== document || target.restricted ||
+      target.key!==original?.key || target.title!==original.title || target.chapterKey!==original.chapterKey || JSON.stringify(target.ancestry)!==JSON.stringify(original.ancestry) ||
+      (target.node!==original.node && original.node.isConnected) || fresh.catalog.filter(item=>item.key===target.key).length!==1) {
+      emit('failed','native-target-invalid');throw Error('native-target-invalid');
+    }
     const oldDocuments = fresh.documents, oldTasks = fresh.tasks;
+    const topology=snapshot=>JSON.stringify([snapshot.chapters.map(item=>[item.key,item.title]),snapshot.catalog.map(item=>[item.key,item.title,item.chapterKey,item.ancestry,item.restricted])]);
+    const expectedTopology=topology(fresh);
     return new Promise((resolve, reject) => {
-      const observer = new document.defaultView.MutationObserver(check), watched = new WeakSet();
-      function cleanup() { observer.disconnect(); document.removeEventListener('load', check, true); signal.removeEventListener('abort', abort); }
-      function abort() { cleanup(); reject(Error('native-navigation-cancelled')); }
+      const observer = new document.defaultView.MutationObserver(check), watched = new Set();
+      let settled=false,cancelPoll,activeSeen=false,contentSeen=false;
+      function cleanup() { observer.disconnect();cancelPoll?.();for(const doc of watched)doc.removeEventListener('load',check,true);signal.removeEventListener('abort', abort); }
+      function fail(code){if(settled)return;settled=true;cleanup();emit('failed',code);reject(Error(code));}
+      function abort() { if(settled)return;settled=true;cleanup();emit('cancelled','native-navigation-cancelled');reject(Error('native-navigation-cancelled')); }
       function check() {
+        if(settled)return;
         if (signal.aborted) { abort(); return; }
         const next = reader.scan(document), evidence = inspectInventory(next);
-        for (const doc of [document, ...evidence.documents]) if (!watched.has(doc)) { watched.add(doc); observer.observe(doc, { subtree: true, childList: true, attributes: true }); }
+        for (const doc of [document, ...evidence.documents]) if (!watched.has(doc)) { watched.add(doc);doc.addEventListener('load',check,true);observer.observe(doc, { subtree: true, childList: true, attributes: true }); }
+        if(evidence.courseKey&&evidence.courseKey!==authorization.courseKey){fail('destination-mismatch');return;}
+        if(evidence.status==='unsafe'||evidence.status==='unsupported'){fail('destination-unsafe');return;}
+        if(evidence.status==='verified'&&topology(evidence)!==expectedTopology){fail('catalog-mismatch');return;}
+        if(evidence.valid&&evidence.lesson.key!==authorization.lessonKey&&evidence.lesson.key!==authorization.targetKey){fail('destination-mismatch');return;}
         const changed = evidence.documents.some(doc => !oldDocuments.includes(doc)) || evidence.tasks.some(task =>
           !oldTasks.some(old => old.owner === task.owner && old.player === task.player && old.source === task.source));
+        if(evidence.lesson?.key===authorization.targetKey&&!activeSeen){activeSeen=true;emit('destination-active');}
+        if(changed&&evidence.valid&&!contentSeen){contentSeen=true;emit('destination-content',activeSeen?'none':'awaiting-target');}
         if (evidence.valid && evidence.courseKey === authorization.courseKey && evidence.lesson.key === authorization.targetKey && changed) {
-          cleanup(); resolve(next);
+          settled=true;cleanup(); resolve(next);
         }
       }
       if (signal.aborted) { abort(); return; }
-      signal.addEventListener('abort', abort); document.addEventListener('load', check, true);
-      watched.add(document); observer.observe(document, { subtree: true, childList: true, attributes: true });
-      try { target.node.click(); check(); } catch (error) { cleanup(); reject(error); }
+      signal.addEventListener('abort', abort);
+      watched.add(document);document.addEventListener('load',check,true);observer.observe(document, { subtree: true, childList: true, attributes: true });
+      cancelPoll=observe?.(check); // Same coordinator scheduler, no timer in the port.
+      emit('native-activation');
+      try { target.node.click();emit('native-returned');check(); } catch { fail('native-activation-threw'); }
     });
   } });
 }
@@ -1431,22 +1545,98 @@ Object.assign(__exports, {storageKey,defaults,actionCategories,validateSettings,
 "src/runtime/diagnostics.js": function(__exports, __require) {
 const categories = new Set(['recognition','selection','outcome','recovery','manual','credit','navigation','stop','settings','storage']);
 const kinds = new Set(['video','audio','document','live','assessment','unknown']);
-const states = new Set(['DISCOVERED','PENDING','READY','STARTING','RUNNING','LOCAL_COMPLETED','WAITING_PLATFORM','FAILED','UNRESOLVED','UNSUPPORTED','PAUSED','CANCELLED']);
-function createDiagnostics(storage) {
+const states = new Set(['DISCOVERED','PENDING','READY','STARTING','RUNNING','LOCAL_COMPLETED','WAITING_PLATFORM','RESTORED_WAITING_PLATFORM','FAILED','UNRESOLVED','UNSUPPORTED','PAUSED','CANCELLED']);
+const phases=new Set(['unknown','detecting','running','waiting','stopped','unsupported','navigating','recovering','resting']);
+const stages=new Set(['event','legacy','completion-observed','completion-validated','target-selected','target-rejected','permit-issued','queued','queue-rejected','cooldown-started','cooldown-expired','permit-renewed','permit-consumed','permit-rejected','native-activation','native-returned','destination-active','destination-content','acknowledged','cancelled','failed','timeout']);
+const outcomes=new Set(['unknown','observed','accepted','rejected','pending','succeeded','cancelled','failed']);
+const deadlines=new Set(['none','navigation','acknowledgement','attachment','recovery','owner','rest','startup']);
+const reasons=Object.freeze({
+  none:'', 'legacy-unrecorded':'旧版记录未采集原因', 'no-eligible-target':'没有可安全前往的学习项',
+  'assessment-boundary':'测验边界无法安全延后', 'assessment-limit':'连续测验超过安全遍历上限', 'source-not-unique':'来源目录身份不唯一',
+  'uncertain-target-ancestry':'目标章节归属未确认', 'inactive-or-busy-context':'当前任务或导航仍在运行', 'unsafe-completion-context':'完成证据或任务归属不安全',
+  'not-isolated-optional-assessment':'并非独立可延后的章节测验', 'unverified-preceding-learning':'前序学习项尚未独立确认完成', 'lesson-not-credited':'等待平台完成确认',
+  'unsupported-boundary':'存在未知或必须处理的任务', 'unresolved-execution':'当前任务仍未解决', 'unfinished-local-task':'本地任务尚未结束',
+  'incomplete-task-evidence':'平台仍显示附件未完成', 'media-still-active':'媒体仍在播放或定位，不能离开',
+  'permit-invalid':'导航许可无效或已失效', 'permit-expired':'导航许可已过期', 'queue-busy':'已有任务或导航动作，未重复排队',
+  'native-target-invalid':'原生目标不存在或归属不唯一', 'native-activation-threw':'原生激活调用抛出异常', 'destination-mismatch':'目标小节或课程身份不匹配',
+  'catalog-mismatch':'目录拓扑改变，不能确认目标', 'destination-unsafe':'目标页面含验证或不安全任务', 'awaiting-target':'内容已变化但授权目标尚未激活',
+  'navigation-unacknowledged':'原生激活后未在期限内确认目标及新内容', 'navigation-ack-mismatch':'返回内容与授权目标不匹配',
+  'navigation-effect-failed':'原生导航执行失败', 'native-navigation-cancelled':'原生导航等待已取消', 'navigation-denied':'冷却后导航许可未获批准',
+  'context-invalidated':'页面或任务上下文已失效', 'context-changed':'页面上下文已改变', 'explicit-stop':'已明确停止自动化', 'automatic-stop':'安全检查已自动暂停', 'destroyed':'脚本已销毁',
+  'verification-required':'页面要求验证码或身份验证', 'contradictory-credit':'平台完成标记与未完成计数矛盾', 'readiness':'等待当前框架或播放器就绪',
+  'terminal-recovery':'当前小节恢复预算已终止', 'manual-required':'需要人工核对后重新检测', 'storage-unavailable':'本地存储不可用，已停止',
+  'adapter-start-rejected':'播放器或阅读器启动失败', 'adapter-unavailable':'当前任务没有可执行适配器', 'unsupported-task-boundary':'当前任务不支持自动处理',
+  'autoplay-denied-after-fallback':'浏览器拒绝正常及静音播放', 'media-error-1':'媒体加载被中止', 'media-error-2':'媒体网络读取失败', 'media-error-3':'媒体解码失败', 'media-error-4':'主播放器媒体源不受支持',
+  'unsupported-media':'主播放器不支持当前媒体', 'play-aborted':'播放请求被中止', 'play-failed':'播放请求失败', 'play-timeout':'播放请求超时', 'readiness-timeout':'播放器就绪超时',
+  'recovery-exhausted':'播放恢复次数已耗尽', 'reader-owner-replaced':'阅读区域已替换', 'reader-invalid-geometry':'无法确认文档滚动范围', 'reader-no-observed-movement':'未观察到文档滚动', 'reader-readiness-timeout':'阅读区域就绪超时',
+  'reader-inaccessible-or-cyclic':'阅读区域包含不可访问框架', 'reader-unsupported-document':'当前文档格式不受支持', 'reader-unsupported-media-surface':'阅读区域含不支持的媒体'
+});
+function safeReason(code){return Object.hasOwn(reasons,code)?code:'manual-required';}
+function createDiagnostics(storage, now=()=>Date.now()) {
   let rows = [];
   const key='xxt.decisions.v1';
-  const safe = row => row && categories.has(row.category) && (states.has(row.state)||row.state==='OTHER') && kinds.has(row.kind) && Object.keys(row).every(k=>['category','state','kind'].includes(k));
-  try { const saved=JSON.parse(storage?.getItem(key)||'[]');if(Array.isArray(saved)&&saved.length<=100&&saved.every(safe))rows=saved.map(row=>Object.freeze({...row})); } catch { /* Diagnostics never grant execution authority. */ }
-  function persist(){try{storage?.setItem(key,JSON.stringify(rows));}catch{/* Optional journal must not change completion or Stop. */}}
-  return Object.freeze({ add(category, state, kind) {
+  const basic=row=>row&&categories.has(row.category)&&(states.has(row.state)||row.state==='OTHER')&&kinds.has(row.kind);
+  const fields=['category','state','kind','phase','reason','stage','order','atMs','outcome','deadlineKind','retry'];
+  const safe=row=>basic(row)&&Object.keys(row).every(k=>fields.includes(k))&&phases.has(row.phase)&&Object.hasOwn(reasons,row.reason)&&stages.has(row.stage)&&outcomes.has(row.outcome)&&deadlines.has(row.deadlineKind)&&Number.isSafeInteger(row.order)&&row.order>=0&&row.order<=1000000000&&(row.atMs===null||Number.isSafeInteger(row.atMs)&&row.atMs>=0&&row.atMs<=2147483647)&&Number.isInteger(row.retry)&&row.retry>=0&&row.retry<=3;
+  try {
+    const saved=JSON.parse(storage?.getItem(key)||'[]');
+    if(Array.isArray(saved)&&saved.length<=100&&saved.every(row=>basic(row)&&Object.keys(row).every(k=>['category','state','kind'].includes(k))))
+      rows=saved.map((row,i)=>Object.freeze({...row,phase:'unknown',reason:'legacy-unrecorded',stage:'legacy',order:i,atMs:null,outcome:'unknown',deadlineKind:'none',retry:0}));
+    else if(saved?.version===2&&Array.isArray(saved.events)&&saved.events.length<=100&&saved.events.every(safe))rows=saved.events.map(row=>Object.freeze({...row}));
+  }catch{/* Invalid journal is never evidence or execution authority. */}
+  const start=now();let order=rows.length?Math.max(...rows.map(r=>r.order))+1:0;
+  function persist(){try{storage?.setItem(key,JSON.stringify({version:2,events:rows}));}catch{/* Optional journal never changes Stop/credit. */}}
+  return Object.freeze({ add(category, state, kind, details={}) {
     if (!categories.has(category)) return;
-    rows.push(Object.freeze({ category, state: states.has(state) ? state : 'OTHER', kind: kinds.has(kind) ? kind : 'unknown' }));
+    if(!details||typeof details!=='object')details={};
+    rows.push(Object.freeze({ category, state: states.has(state) ? state : 'OTHER', kind: kinds.has(kind) ? kind : 'unknown',
+      phase:phases.has(details.phase)?details.phase:'unknown',reason:Object.hasOwn(reasons,details.reason)?details.reason:'none',stage:stages.has(details.stage)?details.stage:'event',
+      order:Math.min(order++,1000000000),atMs:Math.min(2147483647,Math.max(0,Math.floor(now()-start))),outcome:outcomes.has(details.outcome)?details.outcome:'unknown',
+      deadlineKind:deadlines.has(details.deadlineKind)?details.deadlineKind:'none',retry:Number.isInteger(details.retry)?Math.max(0,Math.min(3,details.retry)):0 }));
     rows = rows.slice(-100);
     persist();
-  }, export: () => JSON.stringify({ format: 'xxt-diagnostics-v1', events: rows }), clear() { rows = [];persist(); } });
+  }, export: () => JSON.stringify({ format: 'xxt-diagnostics-v2', events: rows }), clear() { rows = [];order=0;persist(); } });
 }
 
-Object.assign(__exports, {createDiagnostics});
+Object.assign(__exports, {reasons,safeReason,createDiagnostics});
+},
+"src/runtime/presentation.js": function(__exports, __require) {
+const { reasons, safeReason } = __require("src/runtime/diagnostics.js");
+// Read-only projection. No random draws, scheduling, storage writes or DOM effects.
+function runtimePresentation({state,task,evaluation,actions,now,stopped,pendingContext,tabPending,recovery,restUntil,loadingSince,failureCode='none'}) {
+  const pending=actions.filter(a=>a.status==='pending');
+  const nav=pending.find(a=>a.key.endsWith(':navigate')),ack=pending.find(a=>a.key.endsWith(':navigation-ack'));
+  const start=pending.find(a=>a.key.includes(':start:')),retry=pending.find(a=>a.key.includes(':external:recovery-'));
+  const record=state.records.find(r=>r.key===task?.key),fresh=evaluation?.fresh;
+  const contradiction=fresh?.lesson?.credit.status==='contradictory'||fresh?.tasks.some(t=>t.credit.status==='contradictory');
+  const platformCredit=contradiction?'contradictory':!evaluation?.safe?'unavailable':evaluation.lessonConfirmed?'confirmed':'unconfirmed';
+  let runtimePhase='waiting',currentAction='platform-confirmation',nextAction='none',deadlineKind='none',deadline=null;
+  if(stopped){runtimePhase='stopped';currentAction='manual';}
+  else if(ack){runtimePhase='navigating';currentAction='destination-confirmation';nextAction='waiting-owner';deadlineKind='acknowledgement';deadline=ack.deadline;}
+  else if(nav){
+    runtimePhase='navigating';currentAction='navigation-delay';deadlineKind='navigation';deadline=nav.deadline;
+    const target=fresh?.catalog.find(item=>item.key===state.navigation?.targetKey);
+    nextAction=target?.chapterKey!==fresh?.lesson?.chapterKey?'next-chapter':'next-lesson';
+  }
+  else if(pendingContext||tabPending){runtimePhase=pendingContext?.sameLesson?'recovering':'waiting';currentAction=pendingContext?.sameLesson?'frame-recovery':'waiting-owner';nextAction='waiting-owner';deadlineKind=pendingContext?.sameLesson?'recovery':'owner';deadline=(pendingContext||tabPending).until;}
+  else if(retry){runtimePhase='recovering';currentAction=state.active?'recovery-observation':'frame-recovery';nextAction=state.active?'none':'waiting-owner';deadlineKind='recovery';deadline=retry.deadline;}
+  else if(restUntil>now){runtimePhase='resting';currentAction='rest';deadlineKind='rest';deadline=restUntil;}
+  else if(start){runtimePhase='waiting';currentAction=task?.kind==='video'?'video-start':task?.kind==='audio'?'audio-start':'task-start';nextAction=task?.ordinal>0?'next-attachment':currentAction;deadlineKind='attachment';deadline=start.deadline;}
+  else if(state.active){runtimePhase='running';currentAction=task?.kind==='live'?'manual':record?.state==='STARTING'?'task-start':task?.kind==='document'?'reading':'playing';}
+  else if(state.records.some(r=>['UNSUPPORTED','UNRESOLVED','FAILED'].includes(r.state))||failureCode==='unsupported-boundary'){runtimePhase='unsupported';currentAction='manual';}
+  else if(!['none','lesson-not-credited','inactive-or-busy-context'].includes(failureCode)){currentAction='manual';}
+  else if(!state.inventory||state.inventory.status==='loading'){runtimePhase='detecting';currentAction='detecting';if(state.inventory){deadlineKind='startup';deadline=loadingSince+10000;}}
+  const code=platformCredit==='contradictory'?'contradictory-credit':failureCode!=='none'?safeReason(failureCode):runtimePhase==='unsupported'?safeReason(state.diagnostic):'none';
+  const manualRequired=runtimePhase==='stopped'||runtimePhase==='unsupported'||!['none','lesson-not-credited','inactive-or-busy-context'].includes(code);
+  return Object.freeze({runtimePhase,currentAction,nextAction,deadlineKind,remainingMs:deadline===null?null:Math.max(0,deadline-now),platformCredit,
+    localResult:record?.state==='RESTORED_WAITING_PLATFORM'?'restored':record?.state==='WAITING_PLATFORM'?'local-ended':['STARTING','RUNNING'].includes(record?.state)?'running':['FAILED','UNRESOLVED','UNSUPPORTED','CANCELLED','PAUSED'].includes(record?.state)?'unresolved':'not-started',
+    knownCount:state.records.filter(r=>['video','audio','document','live'].includes(r.kind)).length,
+    locallyEndedCount:state.records.filter(r=>['WAITING_PLATFORM','RESTORED_WAITING_PLATFORM'].includes(r.state)).length,
+    recoveryAttempt:recovery?.attempts||0,recoveryBudget:3,recoveryRemainingMs:deadlineKind==='recovery'?Math.max(0,deadline-now):null,
+    restRemaining:stopped?0:Math.max(0,restUntil-now),failureCode:code,failureText:reasons[code],manualRequired,navigationStage:state.navigation?.stage||'idle'});
+}
+
+Object.assign(__exports, {runtimePresentation});
 },
 "src/ui/panel.js": function(__exports, __require) {
 const labels = { automation: '主自动化', video: '视频', audio: '音频', document: '文档', continuation: '安全续接', navigation: '允许小节/章节导航', background: '后台恢复', delays: '随机延迟', restEnabled: '周期休息' };
@@ -1457,8 +1647,8 @@ function mountPanel(document, app) {
   host.id = 'xxt-control'; notice.id = 'xxt-notice';
   const root = host.attachShadow({mode:'open'}), quick = notice.attachShadow({mode:'open'}), cleanup = [], fields = new Map();
   const common = 'font:12px sans-serif;color:#222;box-sizing:border-box;';
-  root.innerHTML = `<style>:host{position:fixed;right:8px;top:8px;z-index:2147483000;pointer-events:none;${common}}details{pointer-events:auto;background:#fafafa;border:1px solid #bbb;border-radius:4px;box-shadow:0 1px 3px #ccc;padding:5px;max-width:calc(100vw - 16px)}summary{cursor:pointer;padding:3px}section{width:264px;max-width:calc(100vw - 30px);max-height:clamp(48px,calc(75vh - 220px),65vh);overflow-y:auto;overflow-wrap:anywhere}section details{box-shadow:none;margin:5px 0}label{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:5px 1px}input[type=number]{width:90px;min-width:0}button{min-height:26px;margin:3px;padding:3px 6px}pre{white-space:pre-wrap;overflow-wrap:anywhere;margin:4px 0}textarea{box-sizing:border-box;width:100%;height:100px}#error{color:#8b2020}</style><details><summary>学习设置</summary><section><details id="lesson"><summary>当前小节 · 检测与手动执行</summary><pre id="status"></pre><div id="actions"></div></details><details id="features"><summary>功能开关</summary></details><details id="delays"><summary>随机延迟（毫秒）</summary></details><details id="rest"><summary>周期休息</summary><pre id="rest-status"></pre></details><details id="diagnostics"><summary>任务记录与诊断</summary><pre id="records">仅保留最多100条脱敏事件；日志不授权完成或导航。</pre><div id="reports"></div><textarea hidden readonly aria-label="脱敏诊断"></textarea></details><div id="defaults"></div><small>恢复默认将暂停自动化；需明确开始。开发测试版。</small><pre id="error" role="alert"></pre></section></details>`;
-  quick.innerHTML = `<style>:host{position:fixed;right:8px;bottom:86px;z-index:2147483000;${common}}div{max-width:min(290px,calc(100vw - 16px));background:#fafafa;border:1px solid #bbb;border-radius:4px;padding:6px;box-sizing:border-box}p{margin:0 0 4px;white-space:pre-wrap;overflow-wrap:anywhere;max-height:25vh;overflow:auto}button{font:inherit;min-height:26px;padding:3px 6px;margin:2px}</style><div><p role="status" aria-live="polite" aria-atomic="true"></p><span></span></div>`;
+  root.innerHTML = `<style>:host{position:fixed;right:8px;top:8px;z-index:2147483000;pointer-events:none;${common}}details{pointer-events:auto;background:#fafafa;border:1px solid #bbb;border-radius:4px;box-shadow:0 1px 3px #ccc;padding:5px;max-width:calc(100vw - 16px)}summary{cursor:pointer;padding:3px}section{width:264px;max-width:calc(100vw - 30px);max-height:clamp(24px,calc(100vh - var(--xxt-notice-height,260px) - 200px),65vh);overflow-y:auto;overflow-wrap:anywhere}section details{box-shadow:none;margin:5px 0}label{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:5px 1px}input[type=number]{width:90px;min-width:0}button{min-height:26px;margin:3px;padding:3px 6px}pre{white-space:pre-wrap;overflow-wrap:anywhere;margin:4px 0}textarea{box-sizing:border-box;width:100%;height:100px}#error{color:#8b2020}</style><details><summary>学习设置</summary><section><details id="lesson"><summary>当前小节 · 检测与手动执行</summary><pre id="status"></pre><div id="actions"></div></details><details id="features"><summary>功能开关</summary></details><details id="delays"><summary>随机延迟（毫秒）</summary></details><details id="rest"><summary>周期休息</summary><pre id="rest-status"></pre></details><details id="diagnostics"><summary>任务记录与诊断</summary><pre id="records">仅保留最多100条脱敏事件；日志不授权完成或导航。</pre><div id="reports"></div><textarea hidden readonly aria-label="脱敏诊断"></textarea></details><div id="defaults"></div><small>恢复默认将暂停自动化；需明确开始。开发测试版。</small><pre id="error" role="alert"></pre></section></details>`;
+  quick.innerHTML = `<style>:host{position:fixed;right:8px;bottom:86px;width:min(336px,calc(100% - 16px));z-index:2147483000;pointer-events:none;${common}}#runtime{width:100%;pointer-events:auto;background:#fafafa;border:1px solid #bbb;border-radius:4px;padding:6px;box-sizing:border-box;line-height:1.35}p{margin:0 0 4px;white-space:pre-wrap;overflow-wrap:anywhere;max-height:3.6em;overflow:auto}dl{margin:0;display:grid;grid-template-columns:1fr;gap:2px}dl div{overflow-wrap:anywhere}button{font:inherit;min-height:26px;padding:3px 6px;margin:2px}[hidden]{display:none}</style><div id="runtime"><p role="status" aria-live="polite" aria-atomic="true"></p><dl aria-live="off"><div data-phase></div><div data-task></div><div data-progress></div><div data-credit></div><div data-local></div><div data-next></div><div data-countdown></div><div data-recovery hidden></div><div data-rest hidden></div><div data-failure hidden></div></dl><span></span></div>`;
   let disposed = false;
   function listen(node,event,fn) { node.addEventListener(event,fn); cleanup.push(()=>node.removeEventListener(event,fn)); }
   function act(fn) { if(disposed)return;try{fn();root.querySelector('#error').textContent='';}catch{root.querySelector('#error').textContent='操作失败：请检查设置或存储；停止状态不会被绕过。';}render(); }
@@ -1488,6 +1678,27 @@ function mountPanel(document, app) {
     for(const {category,enabled,min,max}of actionFields){const r=view.settings.actionRanges?.[category];enabled.checked=r?.enabled??true;if(root.activeElement!==min)min.value=r?.minMs??view.settings.minMs;if(root.activeElement!==max)max.value=r?.maxMs??view.settings.maxMs;}
     for(const [key,input]of fields)if(input.type==='checkbox')input.checked=view.settings[key];else if(root.activeElement!==input)input.value=view.settings[key]??'';
     text(quick.querySelector('[role=status]'),view.message);
+    const phases={detecting:'检测中',running:'运行中',waiting:'等待中',stopped:'已停止',unsupported:'不支持',navigating:'导航中',recovering:'恢复中',resting:'休息中'};
+    const actions={detecting:'识别页面',playing:'播放中',reading:'阅读中','video-start':'视频启动','audio-start':'音频启动','task-start':'任务启动','platform-confirmation':'等待平台完成确认','destination-confirmation':'等待目标与新内容确认','navigation-delay':'等待导航冷却','frame-recovery':'等待框架恢复','recovery-observation':'观察播放恢复','waiting-owner':'等待内容归属',rest:'周期休息',manual:'需人工处理'};
+    const upcoming={'next-attachment':'下一附件','next-lesson':'下一小节','next-chapter':'下一章节','video-start':'视频启动','audio-start':'音频启动','task-start':'任务启动','waiting-owner':'等待内容归属',none:'无'};
+    const credit={confirmed:'已独立确认',unconfirmed:'未确认',contradictory:'标记矛盾',unavailable:'暂不可确认'};
+    const local={running:'执行中','local-ended':'本地已结束（非平台完成）',restored:'恢复的本地结束记录（非平台完成）',unresolved:'未解决','not-started':'尚未执行'};
+    text(quick.querySelector('[data-phase]'),`状态：${phases[view.runtimePhase]||'等待中'} · ${actions[view.currentAction]||view.message}`);
+    text(quick.querySelector('[data-task]'),`任务：${names[task?.kind]||'等待识别'}${task?` · 附件 ${task.ordinal+1}/${view.total}`:''}`);
+    text(quick.querySelector('[data-progress]'),`进度：已知 ${view.knownCount??view.total??0} 项 · 本地结束 ${view.locallyEndedCount??0} 项`);
+    text(quick.querySelector('[data-credit]'),`平台完成：${credit[view.platformCredit]||(view.platformConfirmed?'已独立确认':'未确认')}`);
+    text(quick.querySelector('[data-local]'),`本地执行：${local[view.localResult]||(view.localDone?'本地已结束（非平台完成）':'尚未执行')}`);
+    text(quick.querySelector('[data-next]'),`后续：${upcoming[view.nextAction]||'无'}`);
+    const countdown=view.remainingMs===null||view.remainingMs===undefined?null:Math.max(0,view.remainingMs);
+    const clockLabel={navigation:upcoming[view.nextAction]||'导航',acknowledgement:'目标确认',attachment:actions[view.currentAction]||'附件启动',recovery:view.currentAction==='recovery-observation'?'恢复观察':'等待框架恢复',owner:'等待内容归属',rest:'周期休息',startup:'初始化'};
+    text(quick.querySelector('[data-countdown]'),countdown===null?(view.currentAction==='platform-confirmation'?'等待平台完成确认（无计时）':'计时：无待执行期限'):`${clockLabel[view.deadlineKind]||'动作'}：还剩 ${(countdown/1000).toFixed(1)} 秒`);
+    for(const [selector,show,value] of [
+      ['[data-recovery]',view.recoveryAttempt>0,`恢复：${view.recoveryAttempt||0}/${view.recoveryBudget||3} 次`],
+      ['[data-rest]',view.restRemaining>0,`周期休息：剩余 ${Math.ceil((view.restRemaining||0)/1000)} 秒`],
+      ['[data-failure]',view.failureText&&view.failureCode!=='lesson-not-credited',`原因：${view.failureText||''}${view.manualRequired?'；请手动重新检测/恢复':''}`]]){
+      const node=quick.querySelector(selector);node.hidden=!show;text(node,value);
+    }
+    host.style.setProperty('--xxt-notice-height',`${notice.getBoundingClientRect().height||260}px`);
     const states={READY:'等待启动',STARTING:'启动中',RUNNING:task?.kind==='live'?'人工等待':'运行中',WAITING_PLATFORM:'等待平台信用',RESTORED_WAITING_PLATFORM:'已恢复本地结束记录，等待平台确认',UNRESOLVED:'未解决',UNSUPPORTED:'不支持',PAUSED:'暂停',CANCELLED:'已取消'};
     text(root.querySelector('#status'),`状态：${view.message} ${states[view.taskState]||''}\n任务：${names[task?.kind]||'等待识别'} ${task?`${task.ordinal+1}/${view.total}`:''}\n本地结果：${view.localDone?'已处理，非平台完成':'尚未处理'}\n平台信用：${view.platformConfirmed?'已确认':'未确认'}\n延迟：${view.delayed?'等待中':'无'}\n未知、专有阅读器及未验证直播需人工处理。`);
     text(root.querySelector('#rest-status'),`休息剩余：${Math.max(0,Math.ceil(view.restRemaining/1000))}秒`);

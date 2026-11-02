@@ -1,5 +1,6 @@
 import { Credit } from './contracts.js';
 import { inspectInventory } from '../platform/inventory.js';
+import { catalogStatus } from '../platform/fork-credit.js';
 
 /** Local state is deliberately not an input to the platform-credit evaluator. */
 export function evaluateCompletion(inventory) {
@@ -14,6 +15,6 @@ export function evaluateCompletion(inventory) {
   }
   if (fresh.lesson?.credit.status === Credit.CONTRADICTORY) reasons.push('contradictory-lesson-evidence');
   return Object.freeze({ fresh, safe: reasons.length === 0, reasons: Object.freeze([...new Set(reasons)]),
-    lessonConfirmed: reasons.length === 0 && fresh.lesson?.credit.status === Credit.CONFIRMED,
+    lessonConfirmed: reasons.length === 0 && fresh.lesson?.credit.status === Credit.CONFIRMED && catalogStatus(fresh.lesson.node) === 'completed',
     taskConfirmed: Object.freeze(fresh.tasks.filter(task => task.credit.status === Credit.CONFIRMED).map(task => task.key)) });
 }

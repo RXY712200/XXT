@@ -187,7 +187,24 @@ export function createInventoryReader() {
     const sources = initial.documents.flatMap(doc => all(doc, 'video,audio')).map(media => [media, captureMediaSource(media)]);
     inventories.set(snapshot, () => {
       const fresh = read(document);
-      const same = fresh.structure.length === initial.structure.length && fresh.structure.every((value,i) => value === initial.structure[i]);
+      // Adapted from fork _priorCompletionValid/_refreshVideoContext: only detached
+      // catalog members may be rebound; media, source and frame identity stay exact.
+      const replacements = new Map();
+      const equivalent = fresh.lesson?.credit.status === Credit.CONFIRMED && fresh.courseKey === initial.courseKey && fresh.lesson?.key === initial.lesson?.key &&
+        fresh.catalog.length === initial.catalog.length && fresh.catalog.every((item,i) => {
+          const old = initial.catalog[i];
+          if (item.key !== old.key || item.title !== old.title || item.chapterKey !== old.chapterKey || JSON.stringify(item.ancestry) !== JSON.stringify(old.ancestry)) return false;
+          if (old.node !== item.node) { if (old.node.isConnected) return false; replacements.set(old.node,item.node); }
+          return true;
+        }) && fresh.chapters.length === initial.chapters.length && fresh.chapters.every((item,i) => {
+          const old = initial.chapters[i];if(item.key!==old.key||item.title!==old.title)return false;
+          if(old.node!==item.node){if(old.node.isConnected)return false;replacements.set(old.node,item.node);}return true;
+        });
+      if (equivalent && initial.catalog[0]) {
+        const oldTree = initial.catalog[0].node.closest('#coursetree'), newTree = fresh.catalog[0]?.node.closest('#coursetree');
+        if(oldTree && oldTree!==newTree && !oldTree.isConnected)replacements.set(oldTree,newTree);
+      }
+      const same = fresh.structure.length === initial.structure.length && fresh.structure.every((value,i) => value === initial.structure[i] || equivalent && replacements.has(initial.structure[i]) && replacements.get(initial.structure[i]) === value);
       return Object.freeze({ valid: same && sources.every(([media, expected]) => matchesMediaSource(expected, media)) && fresh.status === 'verified', revision: snapshot.revision, ...fresh, structure: undefined });
     });
     return snapshot;

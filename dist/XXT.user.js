@@ -60,6 +60,12 @@ function bootstrap(document, { clock, random = Math.random, storage, ui = true }
     onInvalidated(reason) {
       if (!c || stopped || disposed || reason === 'inventory-replaced') return;
       const previous = c.snapshot().inventory, next = reader.scan(document);
+      // Whole-lesson credit can survive removal of completed known attachments.
+      // Do not turn disappearance of a prior unknown task into automatic authority.
+      if (previous && next.status === 'verified' && previous.courseKey === next.courseKey && previous.lesson?.key === next.lesson?.key &&
+        previous.tasks.every(t => ['video','audio','document'].includes(t.kind)) && next.tasks.length === 0 &&
+        previous.catalog.length === next.catalog.length && previous.catalog.every((item,i) => item.key===next.catalog[i].key && item.title===next.catalog[i].title && item.chapterKey===next.catalog[i].chapterKey) &&
+        evaluateCompletion(next).lessonConfirmed) { c.bind(next); message='已独立确认平台信用，重新绑定完成小节'; return; }
       if (previous && next.status !== 'unsafe' && next.status !== 'unsupported' && next.lesson?.key && next.lesson.key !== previous.lesson?.key) {
         if (next.status === 'verified' && contentChanged(previous,next)) { c.bind(next); c.startNext(); message = '已重新识别新小节'; return; }
         pendingContext = { previous, courseKey: next.courseKey, lessonKey: next.lesson.key, until: now()+10000 };
@@ -113,6 +119,7 @@ function bootstrap(document, { clock, random = Math.random, storage, ui = true }
       if (next.status === 'unsafe' || next.status === 'unsupported') { halt('页面验证或任务归属不明确：需人工处理'); return; }
       const different = next.courseKey && next.lesson?.key && (next.courseKey !== snapshot.courseKey || next.lesson.key !== snapshot.lesson?.key);
       if (different) { c.contextChanged(); return; }
+      if (next.status === 'verified' && !next.tasks.length && evaluateCompletion(next).lessonConfirmed) { c.contextChanged(); return; }
       if (next.status === 'verified' && snapshot.status === 'loading' && !state.active) {
         loadingSince = now(); c.bind(next); message = '已重新识别当前小节'; c.startNext(); return;
       }
@@ -399,7 +406,24 @@ function createInventoryReader() {
     const sources = initial.documents.flatMap(doc => all(doc, 'video,audio')).map(media => [media, captureMediaSource(media)]);
     inventories.set(snapshot, () => {
       const fresh = read(document);
-      const same = fresh.structure.length === initial.structure.length && fresh.structure.every((value,i) => value === initial.structure[i]);
+      // Adapted from fork _priorCompletionValid/_refreshVideoContext: only detached
+      // catalog members may be rebound; media, source and frame identity stay exact.
+      const replacements = new Map();
+      const equivalent = fresh.lesson?.credit.status === Credit.CONFIRMED && fresh.courseKey === initial.courseKey && fresh.lesson?.key === initial.lesson?.key &&
+        fresh.catalog.length === initial.catalog.length && fresh.catalog.every((item,i) => {
+          const old = initial.catalog[i];
+          if (item.key !== old.key || item.title !== old.title || item.chapterKey !== old.chapterKey || JSON.stringify(item.ancestry) !== JSON.stringify(old.ancestry)) return false;
+          if (old.node !== item.node) { if (old.node.isConnected) return false; replacements.set(old.node,item.node); }
+          return true;
+        }) && fresh.chapters.length === initial.chapters.length && fresh.chapters.every((item,i) => {
+          const old = initial.chapters[i];if(item.key!==old.key||item.title!==old.title)return false;
+          if(old.node!==item.node){if(old.node.isConnected)return false;replacements.set(old.node,item.node);}return true;
+        });
+      if (equivalent && initial.catalog[0]) {
+        const oldTree = initial.catalog[0].node.closest('#coursetree'), newTree = fresh.catalog[0]?.node.closest('#coursetree');
+        if(oldTree && oldTree!==newTree && !oldTree.isConnected)replacements.set(oldTree,newTree);
+      }
+      const same = fresh.structure.length === initial.structure.length && fresh.structure.every((value,i) => value === initial.structure[i] || equivalent && replacements.has(initial.structure[i]) && replacements.get(initial.structure[i]) === value);
       return Object.freeze({ valid: same && sources.every(([media, expected]) => matchesMediaSource(expected, media)) && fresh.status === 'verified', revision: snapshot.revision, ...fresh, structure: undefined });
     });
     return snapshot;
@@ -748,6 +772,7 @@ Object.assign(__exports, {createCoordinator});
 "src/core/completion.js": function(__exports, __require) {
 const { Credit } = __require("src/core/contracts.js");
 const { inspectInventory } = __require("src/platform/inventory.js");
+const { catalogStatus } = __require("src/platform/fork-credit.js");
 /** Local state is deliberately not an input to the platform-credit evaluator. */
 function evaluateCompletion(inventory) {
   const fresh = inspectInventory(inventory);
@@ -761,11 +786,29 @@ function evaluateCompletion(inventory) {
   }
   if (fresh.lesson?.credit.status === Credit.CONTRADICTORY) reasons.push('contradictory-lesson-evidence');
   return Object.freeze({ fresh, safe: reasons.length === 0, reasons: Object.freeze([...new Set(reasons)]),
-    lessonConfirmed: reasons.length === 0 && fresh.lesson?.credit.status === Credit.CONFIRMED,
+    lessonConfirmed: reasons.length === 0 && fresh.lesson?.credit.status === Credit.CONFIRMED && catalogStatus(fresh.lesson.node) === 'completed',
     taskConfirmed: Object.freeze(fresh.tasks.filter(task => task.credit.status === Credit.CONFIRMED).map(task => task.key)) });
 }
 
 Object.assign(__exports, {evaluateCompletion});
+},
+"src/platform/fork-credit.js": function(__exports, __require) {
+// Reused user-added catalog.status implementation, interface extracted from
+// RXY712200/xuexitongScript v3_optimized.js @ 351c08dc4d772908c3d098e8c9160be434bf1064.
+// Absent from pinned upstream 9a23b357875a72ed9bfd9e652257b0849a6855d7.
+// User authorized reuse; XXT's stricter contradiction/scope checks remain required.
+function catalogStatus(node) {
+  if (!node) return 'unknown';
+  const own = selector => [...node.querySelectorAll(selector)].filter(el =>
+    el.closest('.posCatalog_select') === node && !el.closest('.ans-attach-online'));
+  const counts = own('.jobUnfinishCount');
+  const values = counts.map(el => String(el.value ?? el.textContent).trim());
+  if (values.some(value => !/^\d+$/.test(value))) return 'unknown';
+  if (values.some(value => Number(value) > 0)) return 'incomplete';
+  return own('.icon_Completed').length ? 'completed' : 'unknown';
+}
+
+Object.assign(__exports, {catalogStatus});
 },
 "src/core/scheduler.js": function(__exports, __require) {
 /** One logical key is usable once per scheduler lifetime; cancellation is final. */
@@ -1193,7 +1236,7 @@ Object.assign(__exports, {createNativeNavigation});
 "src/runtime/preferences.js": function(__exports, __require) {
 const storageKey = 'xxt.state.v1';
 const defaults = Object.freeze({ automation: true, video: true, audio: true, document: true, continuation: true,
-  navigation: false, background: true, delays: true, minMs: 5000, maxMs: 12000,
+  navigation: true, background: true, delays: true, minMs: 5000, maxMs: 12000,
   restEnabled: false, restCount: null, restMs: null });
 
 function validateSettings(input) {

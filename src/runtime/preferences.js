@@ -1,6 +1,6 @@
 export const storageKey = 'xxt.state.v1';
 export const defaults = Object.freeze({ automation: true, video: true, audio: true, document: true, continuation: true,
-  navigation: false, background: true, delays: true, minMs: 5000, maxMs: 12000,
+  navigation: true, background: true, delays: true, minMs: 5000, maxMs: 12000,
   restEnabled: false, restCount: null, restMs: null });
 
 export function validateSettings(input) {

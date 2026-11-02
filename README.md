@@ -27,7 +27,7 @@ its editor contents with that complete canonical file, then save. No website
 upload, extension installation or deployment is performed by this project.
 Metadata uses HTTPS Chaoxing study paths, grant none, document-idle and noframes.
 
-Expand the Chinese bottom-right panel. Automatic catalog navigation defaults OFF
+Expand the Chinese bottom-right panel. Fresh configurations enable independently eligible catalog navigation
 until its separate native port and actual handler have been reviewed/tested.
 Video/audio/document, safe continuation, background recovery, delays and rest
 have validated switches. Transition delays default 5000–12000 inclusive integer
@@ -42,10 +42,19 @@ view/copy/clear sanitized JSON in the panel. No URLs/IDs/HTML/credentials or pac
 keys are exported. Versioned localStorage contains private pacing keys and is
 readable by same-origin page code; it is not platform-completion authority.
 
-References remain read-only; their code/tests/fixtures/build/history were not
-imported. No legally verified clean-room claim. No Release/tag/PR/Issue, deployment,
+References remain read-only; authorized user-developed source reuse is now
+recorded in FORK_MIGRATION_AUDIT.md. No Git history or private fixture import. No legally verified clean-room claim. No Release/tag/PR/Issue, deployment,
 website upload or stable-version publication is authorized.
 
 Pre-acceptance consolidation: see [all 37 gap classifications](docs/FEATURE_GAP_CLOSURE.md).
 Objective-to-video native tabs are bounded; five special types have recognition-only
 diagnostics, never automatic execution. No claim that every functional gap is closed.
+
+## Authorized fork migration candidate
+
+The latest authorization supersedes the former blanket source-reuse prohibition.
+See [migration audit](docs/FORK_MIGRATION_AUDIT.md) for actual reuse and remaining
+work; earlier independence descriptions are historical, not current blanket claims.
+Fresh settings now enable independently eligible navigation; saved explicit false
+remains false. No claim that comprehensive migration or authenticated acceptance
+is complete. The two-area UI remains unchanged.

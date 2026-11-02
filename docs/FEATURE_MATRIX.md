@@ -112,3 +112,8 @@ on a synthetic page. Actual Chaoxing acceptance remains pending.
 F31 two-area UI restored: persistent bottom-right notice and top-right learning
 settings with grouped controls. Native computed layout/pointer checks at desktop
 and 320px width passed; real course control overlap remains unverified.
+
+Migration update: F18/F19/F20 receive positive-credit detached-node/removed-known
+attachment continuity and directly reused user catalog-status logic. F19 fresh
+settings navigation enabled by explicit user requirement; existing false retained.
+Full migration remains PARTIAL; FORK_MIGRATION_AUDIT.md lists implementation gaps.

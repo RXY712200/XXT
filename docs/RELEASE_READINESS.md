@@ -79,7 +79,7 @@ actual trusted listener integration, transition acknowledgement, active re-click
 ambiguous no-op and Stop. Media in that mouse test is mocked; no authenticated
 platform acceptance is claimed. Existing native media/HTML/artifact smoke passes.
 Coordinator, scheduler, completion/navigation gates and media adapters unchanged.
-Current sole artifact SHA-256: d24ed83b799fdb6987a74063c621843fbcee6a507e6a6dfb4c9d66c7d45d085f
+Current sole artifact SHA-256: ddbb547dffd1f15a746b8961008e89543437689ff072c05e340231b2b02120dd
 
 ## Two-area UI correction
 
@@ -102,4 +102,20 @@ no offscreen bounds and actual pointer hit-testing. Settings content heights wer
 corrected with a responsive upper height cap. No private screenshots committed.
 Full native media/reader/generated-injection/trusted-tab smoke passed. These are
 synthetic page checks, not authenticated course layout or compatibility acceptance.
-Current artifact SHA-256: d24ed83b799fdb6987a74063c621843fbcee6a507e6a6dfb4c9d66c7d45d085f
+Current artifact SHA-256: ddbb547dffd1f15a746b8961008e89543437689ff072c05e340231b2b02120dd
+
+## Authorized fork migration — partial delivery
+
+Starting baseline 11796ff3883e3749bef78896d7ac4fd519564066. Current user policy
+authorizes practical user-code reuse including rewritten inherited-method portions.
+See FORK_MIGRATION_AUDIT.md for direct extraction, adapted guards, equivalent XXT
+implementations retained and exact NOT migrated requirements. Fresh navigation
+is enabled; saved explicit false/Stop are preserved. Positive-credit detached
+catalog rebinding and known completed attachment removal are supported narrowly.
+Two-area UI and accepted playback/source/scheduler protections remain unchanged.
+92 tests pass, prior 87 unchanged; syntax 40, production imports 25. Native Chrome
+media/HTML/artifact/Stop/trusted tabs/two-area layout checks passed. These are
+synthetic/controlled-native results, never authenticated Chaoxing acceptance.
+Remaining implementation work includes durable unknown deferral, full category-B
+extraction, legacy terminal recovery, adaptive reader coverage and GM transport.
+Current sole artifact SHA-256: ddbb547dffd1f15a746b8961008e89543437689ff072c05e340231b2b02120dd

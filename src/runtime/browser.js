@@ -40,6 +40,12 @@ export function bootstrap(document, { clock, random = Math.random, storage, ui =
     onInvalidated(reason) {
       if (!c || stopped || disposed || reason === 'inventory-replaced') return;
       const previous = c.snapshot().inventory, next = reader.scan(document);
+      // Whole-lesson credit can survive removal of completed known attachments.
+      // Do not turn disappearance of a prior unknown task into automatic authority.
+      if (previous && next.status === 'verified' && previous.courseKey === next.courseKey && previous.lesson?.key === next.lesson?.key &&
+        previous.tasks.every(t => ['video','audio','document'].includes(t.kind)) && next.tasks.length === 0 &&
+        previous.catalog.length === next.catalog.length && previous.catalog.every((item,i) => item.key===next.catalog[i].key && item.title===next.catalog[i].title && item.chapterKey===next.catalog[i].chapterKey) &&
+        evaluateCompletion(next).lessonConfirmed) { c.bind(next); message='已独立确认平台信用，重新绑定完成小节'; return; }
       if (previous && next.status !== 'unsafe' && next.status !== 'unsupported' && next.lesson?.key && next.lesson.key !== previous.lesson?.key) {
         if (next.status === 'verified' && contentChanged(previous,next)) { c.bind(next); c.startNext(); message = '已重新识别新小节'; return; }
         pendingContext = { previous, courseKey: next.courseKey, lessonKey: next.lesson.key, until: now()+10000 };
@@ -93,6 +99,7 @@ export function bootstrap(document, { clock, random = Math.random, storage, ui =
       if (next.status === 'unsafe' || next.status === 'unsupported') { halt('页面验证或任务归属不明确：需人工处理'); return; }
       const different = next.courseKey && next.lesson?.key && (next.courseKey !== snapshot.courseKey || next.lesson.key !== snapshot.lesson?.key);
       if (different) { c.contextChanged(); return; }
+      if (next.status === 'verified' && !next.tasks.length && evaluateCompletion(next).lessonConfirmed) { c.contextChanged(); return; }
       if (next.status === 'verified' && snapshot.status === 'loading' && !state.active) {
         loadingSince = now(); c.bind(next); message = '已重新识别当前小节'; c.startNext(); return;
       }

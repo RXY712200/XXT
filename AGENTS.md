@@ -17,16 +17,16 @@
 - Stop an affected portion when a protected decision must change. Report the
   concrete dependency for ChatGPT; do not silently alter the contract.
 
-## Independence
+## Authorized source reuse and provenance
 
-- The upstream project and the developed xuexitongScript fork are read-only
-  references for capabilities and observable constraints, not implementation input
-  to transplant. Never edit them during XXT work.
-- Do not copy their production code, generated userscripts, implementation blocks,
-  tests, fixtures or documentation verbatim. Do not merge/cherry-pick their commits,
-  import history, or switch working copies. Write new code and tests independently.
-- Ordinary platform identifiers may be documented for interoperability, with
-  source attribution. Do not claim legally verified clean-room development.
+- Current migration authorization supersedes the former blanket no-reuse rule.
+  User-developed additions and rewritten portions of inherited methods may be
+  extracted from fork 351c08dc4d772908c3d098e8c9160be434bf1064, compared against
+  upstream 9a23b357875a72ed9bfd9e652257b0849a6855d7. References stay READ ONLY.
+- Check practical provenance/history, preserve attribution and adapt interfaces.
+  Do not blindly import an inherited whole method or treat authorship alone as
+  proof of ownership. Record direct/adapted reuse and retained equivalents.
+- No reference Git history import, private fixtures or unrelated repository edits.
 
 ## Protected product decisions
 

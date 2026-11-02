@@ -1,5 +1,6 @@
 import { Credit, evidence, identity } from '../core/contracts.js';
 import { captureMediaSource, matchesMediaSource } from './media-source.js';
+import { recognizeSpecial } from './special.js';
 
 const inventories = new WeakMap();
 const optionalTitles = new Set(['章节测验', '章节测试', '本章自测']);
@@ -117,6 +118,7 @@ function read(document) {
       source: primary.length === 1 ? source(primary[0]) : null,
       declaredSource: primary.length === 1 ? primary[0].getAttribute('src') : null,
       mediaSource: primary.length === 1 ? captureMediaSource(primary[0]) : null,
+      recognition: kind === 'unknown' ? recognizeSpecial(owner,metadata) : null,
       resolution, capability: kind === 'unknown' || kind === 'assessment' ? 'unsupported' : 'adapter-required', executable: false,
       evidence: Object.freeze([evidence(key, 'recognition', Credit.UNKNOWN, kind === 'unknown' ? 'independent-unknown-boundary' : 'native-structure')]), credit: observed }));
     structure.push(owner, owner.className, owner.id, owner.getAttribute('data'), owner.getAttribute('src'), key);

@@ -6,7 +6,7 @@ was tested. The artifact is not stable, fully compatible or production-ready.
 | Feature IDs | Classification / evidence |
 | --- | --- |
 | F01–F03 | Implemented/synthetic; native stopped bootstrap only; actual course ownership unverified. |
-| F04 | Unsupported objective-to-media-tab activation. |
+| F04 | Partial: evidenced objective/video native tab activation with bounded content acknowledgement; real page validation pending. |
 | F05 | Partial: new-lesson content confirmation; same-lesson reconstruction requires manual rescan. |
 | F06–F07 | Implemented/synthetic; native video element with generated audio track at 1.0x, not actual course video. |
 | F08–F10 | Synthetic background/recovery; real OS switching unverified; native policy limits remain. |
@@ -16,7 +16,7 @@ was tested. The artifact is not stable, fully compatible or production-ready.
 | F19–F21 | Synthetic native-port decisions/acknowledgement and assessment safety; real handler unverified, navigation OFF. |
 | F22 | Partial/native generated HTML scrolling only; PDF plugins/proprietary readers unsupported. |
 | F23–F24 | Partial/manual live entry/observations; no trusted automatic return or tab closing. |
-| F25 | Five explicit disabled recognition descriptors; missing verified structures. |
+| F25 | Five structural recognition-only cases; executors remain disabled pending real controls/credit evidence. |
 | F26 | Implemented/synthetic unknown preservation and fail-closed cancellation. |
 | F27–F30 | Implemented/synthetic settings, integer delays, rest and persistent Stop; conservative recovery. |
 | F31 | Synthetic controls; native generated panel mounting; real course overlap/visual acceptance unverified. |
@@ -45,3 +45,11 @@ background recovery. Check real platform credit independently. Review/test the
 native port before enabling navigation; verify exactly one target/context change.
 Confirm unsupported PDF/live/unknown tasks stay manual and incomplete. Inspect
 sanitized exports and real UI overlap. Record failures without removing requirements.
+
+## Consolidation candidate
+
+F04/F05 now support evidenced objective/video native tab flow with bounded actual
+content acknowledgement. F25 now identifies five explicit structures without
+execution. F31 rejects stale/unsafe UI credit. See FEATURE_GAP_CLOSURE.md for
+all 37 classifications and the consolidated acceptance checklist. Remaining
+proprietary reader/live and browser-policy limitations are unchanged.

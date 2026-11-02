@@ -78,7 +78,7 @@ export function createCoordinator({ clock, adapters = {}, delayFor = () => 0, co
       // Unknown boundaries are not erased even if an unrelated marker is positive.
       if (['unknown', 'assessment'].includes(candidate.kind)) {
         if (candidate.state === State.PENDING) transition(candidate, State.UNSUPPORTED);
-        diagnostic = 'unsupported-task-boundary'; return false;
+        diagnostic = candidate.task.recognition?.reason || 'unsupported-task-boundary'; return false;
       }
       if (evaluation.taskConfirmed.includes(candidate.key) || candidate.state === State.WAITING_PLATFORM) continue;
       if (candidate.state === State.UNRESOLVED && continueKnownAfterFailure) continue;

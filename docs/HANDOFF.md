@@ -10,8 +10,8 @@ Canonical source: existing src ES modules; entry src/entry.js.
 Metadata: userscript/metadata.json. Sole generated file: D:\XXT\dist\XXT.user.js.
 Never hand-edit it. npm run build; npm run verify:artifact; Get-FileHash SHA256.
 Exact installable SHA-256:
-6e9c2c0faf1f4ee53dd3c822047665dd30e0dfa4cfecd8539f3c475a509bfb54
-Final tests: 77 PASS / 0 FAIL; syntax 33 files, production imports 22.
+ef4d94752d9f174fa8460381367a3dbf38b136a6e94591c1146b82e857f39c7b
+Current tests: 81 PASS / 0 FAIL; syntax 36 files, production imports 24.
 Build/verification/PowerShell hash agree; no production dependencies.
 
 See PHASE_V.md and RELEASE_READINESS.md for contracts, evidence and blockers.
@@ -23,3 +23,9 @@ PDF plugins/proprietary readers, five disabled descriptors and automatic live
 return remain unsupported/manual. Audio policy may still deny muted fallback.
 No stable release/tag/PR/Issue/deployment/website upload or reference mutation.
 Five phases/ten steps unchanged. STOP after this delivery pending independent review.
+
+Pre-acceptance consolidation starting SHA 5f91168074a8df13af850080178e45f43cb980a7.
+Native objective/video-tab handling, specific non-executable special recognition
+and fresh UI credit validation added; FEATURE_GAP_CLOSURE.md classifies all 37.
+Final consolidation: 81 synthetic cases; authenticated acceptance PENDING.
+Current artifact SHA-256: ef4d94752d9f174fa8460381367a3dbf38b136a6e94591c1146b82e857f39c7b

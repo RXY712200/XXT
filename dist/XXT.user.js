@@ -29,6 +29,8 @@ const { createNativeNavigation } = __require("src/runtime/native-navigation.js")
 const { createPreferences, sampleDelay } = __require("src/runtime/preferences.js");
 const { createDiagnostics } = __require("src/runtime/diagnostics.js");
 const { mountPanel } = __require("src/ui/panel.js");
+const { evaluateCompletion } = __require("src/core/completion.js");
+const { objectiveVideoTab, activateObjectiveTab } = __require("src/runtime/native-tabs.js");
 const singleton = Symbol.for('XXT.browser.runtime.v1');
 function bootstrap(document, { clock, random = Math.random, storage, ui = true } = {}) {
   const window = document.defaultView;
@@ -38,7 +40,7 @@ function bootstrap(document, { clock, random = Math.random, storage, ui = true }
   const now = clock?.now || (() => Date.now()), reader = createInventoryReader(), log = createDiagnostics();
   let safeStorage; try { safeStorage = storage || window.localStorage; } catch { safeStorage = { getItem() { throw Error('denied'); } }; }
   const prefs = createPreferences(safeStorage, now);
-  let panel, app, c, stopped = prefs.snapshot().stopped || Boolean(prefs.snapshot().error), message = '等待识别', loadingSince = now(), disposed = false, signature = '', pendingContext = null;
+  let panel, app, c, stopped = prefs.snapshot().stopped || Boolean(prefs.snapshot().error), message = '等待识别', loadingSince = now(), disposed = false, signature = '', pendingContext = null, tabPending = null;
   const settings = () => prefs.snapshot().settings;
   const wrap = (kind, factory) => ({ recognize: task => settings()[kind] && factory({ background: settings().background }).recognize(task),
     start: context => factory({ background: settings().background }).start(context) });
@@ -79,6 +81,15 @@ function bootstrap(document, { clock, random = Math.random, storage, ui = true }
     if (c.snapshot().diagnostic === 'navigation-denied') { halt('导航许可已失效，请重新确认平台信用后重扫'); return; }
     const state = c.snapshot(), snapshot = state.inventory;
     if (!snapshot) return;
+    if (tabPending) {
+      const next = reader.scan(document), title = document.querySelector('.prev_title');
+      if (next.courseKey !== tabPending.courseKey || next.lesson?.key !== tabPending.lessonKey || next.status === 'unsafe') { tabPending = null; halt('页签归属变化：请手动重扫'); return; }
+      if (next.status === 'verified' && contentChanged(tabPending.previous,next) && /^(?:\d+\s*)?视频$/.test((title?.getAttribute('title') || title?.textContent || '').trim())) {
+        tabPending = null; c.bind(next); c.startNext(); return;
+      }
+      if (now() >= tabPending.until) { tabPending = null; halt('原生视频页签加载超时，请手动重扫'); return; }
+      message = '等待原生视频页签内容（不是完成）'; panel?.render(); return;
+    }
     if (pendingContext) {
       const next = reader.scan(document);
       if (next.status === 'unsafe' || next.status === 'unsupported' || next.courseKey !== pendingContext.courseKey || next.lesson?.key !== pendingContext.lessonKey) {
@@ -135,7 +146,7 @@ function bootstrap(document, { clock, random = Math.random, storage, ui = true }
     if (!settings().automation) { message = '主自动化已关闭'; panel?.render(); return false; }
     const snapshot = reader.scan(document);
     if (snapshot.status !== 'verified') { halt('页面未就绪或存在安全边界，请稍后明确重扫'); return false; }
-    prefs.resume(); stopped = false; pendingContext = null; loadingSince = now(); c.bind(snapshot); c.resume(); c.startNext(); panel?.render(); return true;
+    prefs.resume(); stopped = false; pendingContext = null; tabPending = null; loadingSince = now(); c.bind(snapshot); c.resume(); c.startNext(); panel?.render(); return true;
   }
   app = Object.freeze({ start: run, resume: run, rescan: run, stop: () => halt('已明确停止；重载不会自动恢复'),
     update(patch) {
@@ -151,19 +162,31 @@ function bootstrap(document, { clock, random = Math.random, storage, ui = true }
     view() {
       const state = c.snapshot(), task = state.inventory?.tasks.find(t => state.records.some(r => r.key === t.key && ['READY','STARTING','RUNNING','UNRESOLVED','UNSUPPORTED'].includes(r.state))) ||
         state.inventory?.tasks.findLast(t => state.records.some(r => r.key === t.key && r.state === 'WAITING_PLATFORM'));
-      return Object.freeze({ settings: settings(), message, task: task ? { kind: task.kind, ordinal: task.ordinal } : null, total: state.records.length,
+      return Object.freeze({ settings: settings(), message, task: task ? { kind: task.recognition?.kind || task.kind, ordinal: task.ordinal, recognitionOnly: Boolean(task.recognition) } : null, total: state.records.length,
         taskState: state.records.find(r => r.key === task?.key)?.state,
-        localDone: state.records.some(r => r.key === task?.key && r.state === 'WAITING_PLATFORM'), platformConfirmed: state.inventory ? inspectInventory(state.inventory).lesson?.credit.status === 'confirmed' : false,
+        localDone: Boolean(state.inventory && inspectInventory(state.inventory).valid && state.records.some(r => r.key === task?.key && r.state === 'WAITING_PLATFORM')), platformConfirmed: state.inventory ? evaluateCompletion(state.inventory).lessonConfirmed : false,
         delayed: c.actions().some(a => a.status === 'pending' && (a.key.includes(':start:') || a.key.endsWith(':navigate'))), restRemaining: Math.max(0,prefs.snapshot().restUntil-now()) });
     },
-    dispose() { if (disposed) return; disposed = true; session.dispose(); panel?.destroy(); if (window[singleton] === app) delete window[singleton]; if (window.XXT === app) delete window.XXT; }
+    dispose() { if (disposed) return; disposed = true; document.removeEventListener('click',manualTab,true); session.dispose(); panel?.destroy(); if (window[singleton] === app) delete window[singleton]; if (window.XXT === app) delete window.XXT; }
   });
+  function manualTab(event) {
+    if (!event.isTrusted || stopped || tabPending || !event.target.closest?.('.prev_white') || !/^(?:\d+\s*)?视频$/.test(event.target.closest('.prev_white').textContent.trim())) return;
+    const inventory = c.snapshot().inventory; if (!inventory?.lesson?.key) return;
+    if (/^(?:\d+\s*)?视频$/.test((document.querySelector('.prev_title')?.getAttribute('title') || '').trim())) return;
+    tabPending = { previous: inventory, courseKey: inventory.courseKey, lessonKey: inventory.lesson.key, until: now()+10000 };
+    stopped = true; c.contextChanged(); stopped = false; arm();
+  }
+  document.addEventListener('click',manualTab,true);
   window[singleton] = app; window.XXT = app;
   if (ui && document.body) panel = mountPanel(document, app);
   if (stopped || !settings().automation) { stopped = true; c.stop(); if (prefs.snapshot().error) log.add('storage'); message = prefs.snapshot().error ? '本地存储异常：已安全停止' : '已保留停止状态，请明确恢复'; }
   else {
     const snapshot = reader.scan(document); c.bind(snapshot);
-    if (snapshot.status === 'verified') c.startNext();
+    const tab = objectiveVideoTab(document);
+    if (tab && snapshot.courseKey && snapshot.lesson?.key && !snapshot.tasks.length && snapshot.status === 'loading' && snapshot.hazards.every(code => code.startsWith('loading-'))) {
+      tabPending = { previous: snapshot, courseKey: snapshot.courseKey, lessonKey: snapshot.lesson.key, until: now()+10000 };
+      if (!activateObjectiveTab(document,tab)) { tabPending = null; halt('视频页签无法安全激活'); }
+    } else if (snapshot.status === 'verified') c.startNext();
     else if (snapshot.status !== 'loading') halt('页面归属或验证状态不明确：需人工处理');
   }
   panel?.render(); return app;
@@ -174,6 +197,7 @@ Object.assign(__exports, {bootstrap});
 "src/platform/inventory.js": function(__exports, __require) {
 const { Credit, evidence, identity } = __require("src/core/contracts.js");
 const { captureMediaSource, matchesMediaSource } = __require("src/platform/media-source.js");
+const { recognizeSpecial } = __require("src/platform/special.js");
 const inventories = new WeakMap();
 const optionalTitles = new Set(['章节测验', '章节测试', '本章自测']);
 const all = (node, selector) => [...node.querySelectorAll(selector)];
@@ -290,6 +314,7 @@ function read(document) {
       source: primary.length === 1 ? source(primary[0]) : null,
       declaredSource: primary.length === 1 ? primary[0].getAttribute('src') : null,
       mediaSource: primary.length === 1 ? captureMediaSource(primary[0]) : null,
+      recognition: kind === 'unknown' ? recognizeSpecial(owner,metadata) : null,
       resolution, capability: kind === 'unknown' || kind === 'assessment' ? 'unsupported' : 'adapter-required', executable: false,
       evidence: Object.freeze([evidence(key, 'recognition', Credit.UNKNOWN, kind === 'unknown' ? 'independent-unknown-boundary' : 'native-structure')]), credit: observed }));
     structure.push(owner, owner.className, owner.id, owner.getAttribute('data'), owner.getAttribute('src'), key);
@@ -447,6 +472,24 @@ function matchesMediaSource(expected, media) {
 
 Object.assign(__exports, {captureMediaSource,matchesMediaSource});
 },
+"src/platform/special.js": function(__exports, __require) {
+// Evidence: pinned reference's published structural recognition. Never execution.
+function recognizeSpecial(owner, metadata = {}) {
+  if (!owner.isConnected || owner.tagName !== 'IFRAME') return null;
+  let doc, route; try { doc = owner.contentDocument; route = new URL(doc.URL); } catch { return null; }
+  const book = route.protocol === 'https:' && /(^|\.)chaoxing\.com$/.test(route.hostname) && /^\/readsvr\/book\/mooc(?:\/|$)/.test(route.pathname);
+  const module = metadata.module || metadata.type, matches = [];
+  if (book && doc.querySelector('#reader .readerPager') && doc.querySelector('#pagejump')) {
+    const seconds = Number(route.searchParams.get('timing')); if (Number.isSafeInteger(seconds) && seconds > 0 && seconds <= 86400) matches.push('timed-reader');
+  } else if (book && module === 'insertbook' && doc.querySelector('#ReadWeb')) matches.push('book-knowledge-map');
+  if (doc.querySelector('.swiper-container .swiper-slide') && doc.querySelector('audio')) matches.push('audio-slides');
+  if (doc.querySelector('#hyperlink')) matches.push('hyperlink');
+  if (module === 'insertflash') matches.push('legacy-multimedia');
+  return matches.length === 1 ? Object.freeze({ kind: matches[0], executable: false, reason: `recognition-only-${matches[0]}` }) : null;
+}
+
+Object.assign(__exports, {recognizeSpecial});
+},
 "src/runtime/session.js": function(__exports, __require) {
 const { createCoordinator } = __require("src/core/coordinator.js");
 // Explicit assembly only: no browser boot, listeners, clicks or media adapters.
@@ -543,7 +586,7 @@ function createCoordinator({ clock, adapters = {}, delayFor = () => 0, continueK
       // Unknown boundaries are not erased even if an unrelated marker is positive.
       if (['unknown', 'assessment'].includes(candidate.kind)) {
         if (candidate.state === State.PENDING) transition(candidate, State.UNSUPPORTED);
-        diagnostic = 'unsupported-task-boundary'; return false;
+        diagnostic = candidate.task.recognition?.reason || 'unsupported-task-boundary'; return false;
       }
       if (evaluation.taskConfirmed.includes(candidate.key) || candidate.state === State.WAITING_PLATFORM) continue;
       if (candidate.state === State.UNRESOLVED && continueKnownAfterFailure) continue;
@@ -1207,7 +1250,7 @@ Object.assign(__exports, {createDiagnostics});
 },
 "src/ui/panel.js": function(__exports, __require) {
 const labels = { automation: '主自动化', video: '视频', audio: '音频', document: '文档', continuation: '安全续接', navigation: '允许小节/章节导航', background: '后台恢复', delays: '随机延迟', restEnabled: '周期休息' };
-const names = { video: '视频', audio: '音频', document: '文档', live: '直播（手动）', assessment: '测验（不作答）', unknown: '未知' };
+const names = { video: '视频', audio: '音频', document: '文档', live: '直播（手动）', assessment: '测验（不作答）', unknown: '未知', 'book-knowledge-map': '书籍/知识图谱（仅识别）', 'timed-reader': '计时阅读（仅识别）', 'audio-slides': '音频幻灯（仅识别）', hyperlink: '链接任务（仅识别）', 'legacy-multimedia': '旧式动画（不支持执行）' };
 function mountPanel(document, app) {
   const host = document.createElement('aside'); host.id = 'xxt-control';
   const root = host.attachShadow({ mode: 'open' });
@@ -1234,6 +1277,26 @@ function mountPanel(document, app) {
 }
 
 Object.assign(__exports, {mountPanel});
+},
+"src/runtime/native-tabs.js": function(__exports, __require) {
+/** Evidenced objective/video labels only; numeric-only tabs are never inferred. */
+function objectiveVideoTab(document) {
+  const titles = [...document.querySelectorAll('.prev_title')];
+  if (titles.length !== 1 || (titles[0].getAttribute('title') || titles[0].textContent).trim() !== '学习目标') return null;
+  if (document.querySelector('input[type=password],input[autocomplete="one-time-code"]')) return null;
+  const matches = [...document.querySelectorAll('.prev_white')].filter(node => {
+    const style = document.defaultView.getComputedStyle(node);
+    return node.isConnected && !node.hidden && style.display !== 'none' && style.visibility !== 'hidden' &&
+      /^(?:\d+\s*)?视频$/.test(node.textContent.trim()) && !node.closest('[aria-disabled="true"],[disabled]');
+  });
+  return matches.length === 1 ? matches[0] : null;
+}
+function activateObjectiveTab(document, target) {
+  if (objectiveVideoTab(document) !== target) return false;
+  target.click(); return true; // Original native handler, no fabricated trusted gesture.
+}
+
+Object.assign(__exports, {objectiveVideoTab,activateObjectiveTab});
 }
 };
 const __cache=Object.create(null);

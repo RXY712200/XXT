@@ -8,6 +8,8 @@ import { createNativeNavigation } from './native-navigation.js';
 import { createPreferences, sampleDelay } from './preferences.js';
 import { createDiagnostics } from './diagnostics.js';
 import { mountPanel } from '../ui/panel.js';
+import { evaluateCompletion } from '../core/completion.js';
+import { objectiveVideoTab, activateObjectiveTab } from './native-tabs.js';
 
 const singleton = Symbol.for('XXT.browser.runtime.v1');
 export function bootstrap(document, { clock, random = Math.random, storage, ui = true } = {}) {
@@ -18,7 +20,7 @@ export function bootstrap(document, { clock, random = Math.random, storage, ui =
   const now = clock?.now || (() => Date.now()), reader = createInventoryReader(), log = createDiagnostics();
   let safeStorage; try { safeStorage = storage || window.localStorage; } catch { safeStorage = { getItem() { throw Error('denied'); } }; }
   const prefs = createPreferences(safeStorage, now);
-  let panel, app, c, stopped = prefs.snapshot().stopped || Boolean(prefs.snapshot().error), message = '等待识别', loadingSince = now(), disposed = false, signature = '', pendingContext = null;
+  let panel, app, c, stopped = prefs.snapshot().stopped || Boolean(prefs.snapshot().error), message = '等待识别', loadingSince = now(), disposed = false, signature = '', pendingContext = null, tabPending = null;
   const settings = () => prefs.snapshot().settings;
   const wrap = (kind, factory) => ({ recognize: task => settings()[kind] && factory({ background: settings().background }).recognize(task),
     start: context => factory({ background: settings().background }).start(context) });
@@ -59,6 +61,15 @@ export function bootstrap(document, { clock, random = Math.random, storage, ui =
     if (c.snapshot().diagnostic === 'navigation-denied') { halt('导航许可已失效，请重新确认平台信用后重扫'); return; }
     const state = c.snapshot(), snapshot = state.inventory;
     if (!snapshot) return;
+    if (tabPending) {
+      const next = reader.scan(document), title = document.querySelector('.prev_title');
+      if (next.courseKey !== tabPending.courseKey || next.lesson?.key !== tabPending.lessonKey || next.status === 'unsafe') { tabPending = null; halt('页签归属变化：请手动重扫'); return; }
+      if (next.status === 'verified' && contentChanged(tabPending.previous,next) && /^(?:\d+\s*)?视频$/.test((title?.getAttribute('title') || title?.textContent || '').trim())) {
+        tabPending = null; c.bind(next); c.startNext(); return;
+      }
+      if (now() >= tabPending.until) { tabPending = null; halt('原生视频页签加载超时，请手动重扫'); return; }
+      message = '等待原生视频页签内容（不是完成）'; panel?.render(); return;
+    }
     if (pendingContext) {
       const next = reader.scan(document);
       if (next.status === 'unsafe' || next.status === 'unsupported' || next.courseKey !== pendingContext.courseKey || next.lesson?.key !== pendingContext.lessonKey) {
@@ -115,7 +126,7 @@ export function bootstrap(document, { clock, random = Math.random, storage, ui =
     if (!settings().automation) { message = '主自动化已关闭'; panel?.render(); return false; }
     const snapshot = reader.scan(document);
     if (snapshot.status !== 'verified') { halt('页面未就绪或存在安全边界，请稍后明确重扫'); return false; }
-    prefs.resume(); stopped = false; pendingContext = null; loadingSince = now(); c.bind(snapshot); c.resume(); c.startNext(); panel?.render(); return true;
+    prefs.resume(); stopped = false; pendingContext = null; tabPending = null; loadingSince = now(); c.bind(snapshot); c.resume(); c.startNext(); panel?.render(); return true;
   }
   app = Object.freeze({ start: run, resume: run, rescan: run, stop: () => halt('已明确停止；重载不会自动恢复'),
     update(patch) {
@@ -131,19 +142,31 @@ export function bootstrap(document, { clock, random = Math.random, storage, ui =
     view() {
       const state = c.snapshot(), task = state.inventory?.tasks.find(t => state.records.some(r => r.key === t.key && ['READY','STARTING','RUNNING','UNRESOLVED','UNSUPPORTED'].includes(r.state))) ||
         state.inventory?.tasks.findLast(t => state.records.some(r => r.key === t.key && r.state === 'WAITING_PLATFORM'));
-      return Object.freeze({ settings: settings(), message, task: task ? { kind: task.kind, ordinal: task.ordinal } : null, total: state.records.length,
+      return Object.freeze({ settings: settings(), message, task: task ? { kind: task.recognition?.kind || task.kind, ordinal: task.ordinal, recognitionOnly: Boolean(task.recognition) } : null, total: state.records.length,
         taskState: state.records.find(r => r.key === task?.key)?.state,
-        localDone: state.records.some(r => r.key === task?.key && r.state === 'WAITING_PLATFORM'), platformConfirmed: state.inventory ? inspectInventory(state.inventory).lesson?.credit.status === 'confirmed' : false,
+        localDone: Boolean(state.inventory && inspectInventory(state.inventory).valid && state.records.some(r => r.key === task?.key && r.state === 'WAITING_PLATFORM')), platformConfirmed: state.inventory ? evaluateCompletion(state.inventory).lessonConfirmed : false,
         delayed: c.actions().some(a => a.status === 'pending' && (a.key.includes(':start:') || a.key.endsWith(':navigate'))), restRemaining: Math.max(0,prefs.snapshot().restUntil-now()) });
     },
-    dispose() { if (disposed) return; disposed = true; session.dispose(); panel?.destroy(); if (window[singleton] === app) delete window[singleton]; if (window.XXT === app) delete window.XXT; }
+    dispose() { if (disposed) return; disposed = true; document.removeEventListener('click',manualTab,true); session.dispose(); panel?.destroy(); if (window[singleton] === app) delete window[singleton]; if (window.XXT === app) delete window.XXT; }
   });
+  function manualTab(event) {
+    if (!event.isTrusted || stopped || tabPending || !event.target.closest?.('.prev_white') || !/^(?:\d+\s*)?视频$/.test(event.target.closest('.prev_white').textContent.trim())) return;
+    const inventory = c.snapshot().inventory; if (!inventory?.lesson?.key) return;
+    if (/^(?:\d+\s*)?视频$/.test((document.querySelector('.prev_title')?.getAttribute('title') || '').trim())) return;
+    tabPending = { previous: inventory, courseKey: inventory.courseKey, lessonKey: inventory.lesson.key, until: now()+10000 };
+    stopped = true; c.contextChanged(); stopped = false; arm();
+  }
+  document.addEventListener('click',manualTab,true);
   window[singleton] = app; window.XXT = app;
   if (ui && document.body) panel = mountPanel(document, app);
   if (stopped || !settings().automation) { stopped = true; c.stop(); if (prefs.snapshot().error) log.add('storage'); message = prefs.snapshot().error ? '本地存储异常：已安全停止' : '已保留停止状态，请明确恢复'; }
   else {
     const snapshot = reader.scan(document); c.bind(snapshot);
-    if (snapshot.status === 'verified') c.startNext();
+    const tab = objectiveVideoTab(document);
+    if (tab && snapshot.courseKey && snapshot.lesson?.key && !snapshot.tasks.length && snapshot.status === 'loading' && snapshot.hazards.every(code => code.startsWith('loading-'))) {
+      tabPending = { previous: snapshot, courseKey: snapshot.courseKey, lessonKey: snapshot.lesson.key, until: now()+10000 };
+      if (!activateObjectiveTab(document,tab)) { tabPending = null; halt('视频页签无法安全激活'); }
+    } else if (snapshot.status === 'verified') c.startNext();
     else if (snapshot.status !== 'loading') halt('页面归属或验证状态不明确：需人工处理');
   }
   panel?.render(); return app;

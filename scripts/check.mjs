@@ -18,7 +18,7 @@ for (const file of production) {
     assert.ok(specifier.startsWith('.'), `No runtime external dependency: ${relative(root, file)}`);
     assert.ok(!relative(resolve(root, 'src'), resolve(dirname(file), specifier)).startsWith('..'), 'No external reference-repository imports');
   }
-  const nativePort = relative(root, file).replaceAll('\\', '/') === 'src/runtime/native-navigation.js';
+  const nativePort = ['src/runtime/native-navigation.js','src/runtime/native-tabs.js'].includes(relative(root, file).replaceAll('\\', '/'));
   assert.ok(!/\.(?:scrollTo|scrollBy)\s*\(|\bwindow\.open\s*\(|\bfetch\s*\(/.test(source), 'No unauthorized browser/network actions');
   if (!nativePort) assert.ok(!/\.click\s*\(/.test(source), 'Catalog activation stays in native navigation port');
   if (relative(root, file).replaceAll('\\', '/') !== 'src/adapters/media.js') assert.ok(!/\.(?:play|pause)\s*\(/.test(source), 'Media effects stay in shared adapter');

@@ -10,7 +10,8 @@
 - Read `docs/HANDOFF.md`, `docs/MASTER_PLAN.md` and the relevant feature rows first.
   HANDOFF is the authoritative resumption entry point; recheck its Git claims.
 - Phase IV is accepted at `3fc8021a7b51d0770fbf7931a0d2aa548213e3e1`.
-  Current authorization covers Phase V Steps 09/10 in one implementation commit.
+  Current authorization covers one consolidated pre-acceptance feature-gap correction,
+  based on reviewed SHA 5f91168074a8df13af850080178e45f43cb980a7.
   Stop after delivery; independent acceptance and explicit user authorization are
   required before real-user acceptance/release. Preserve five phases / ten steps.
 - Stop an affected portion when a protected decision must change. Report the

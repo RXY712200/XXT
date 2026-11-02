@@ -45,3 +45,7 @@ readable by same-origin page code; it is not platform-completion authority.
 References remain read-only; their code/tests/fixtures/build/history were not
 imported. No legally verified clean-room claim. No Release/tag/PR/Issue, deployment,
 website upload or stable-version publication is authorized.
+
+Pre-acceptance consolidation: see [all 37 gap classifications](docs/FEATURE_GAP_CLOSURE.md).
+Objective-to-video native tabs are bounded; five special types have recognition-only
+diagnostics, never automatic execution. No claim that every functional gap is closed.

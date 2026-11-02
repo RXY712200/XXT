@@ -1,8 +1,15 @@
-> CURRENT OWNER DECISION after ae9a792: this matrix is historical evidence for the
-> retired rewrite, not a production runtime contract. The complete original fork
-> 351c08dc is canonical. Redistribution permission was not established, so XXT
-> bundles no engine; see CANONICAL_RUNTIME_RESTORE.md. No row below implies that
-> rewritten behavior, diagnostic schema or UI is imposed on the original V3.
+## Current owner decision — developed V3 transplant
+
+This supersedes the external-canonical fallback and all older runtime/feature
+claims below. Starting main: `0d8a0829947cbda4de8f22cace5242cf8d5847b5`.
+The only active source is src/entry.js: directly preserved developed fork code
+plus an independent foundation, with no retired XXT engine in the installable.
+See [FOUNDATION_TRANSPLANT.md](FOUNDATION_TRANSPLANT.md) for exact provenance,
+26 adaptations, 93 identical new functions/methods, metadata and evidence limits.
+Nine focused complete-script/integrity checks pass. Original two-area UI,
+GM/replay restrictions, credit/navigation, pacing and recovery contracts remain;
+unsupported capabilities are not promoted. Authenticated acceptance remains
+PARTIAL; no new phase or release. Older implementation tables/statuses are historical.
 
 # Feature matrix — Phase I baseline / Phase V status
 

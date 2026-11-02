@@ -1,59 +1,67 @@
-# XXT — canonical runtime reference
+# XXT — developed V3 transplant / development candidate
 
-**The complete original fork is the sole execution engine.** The rewritten XXT
-runtime is retired. This repository currently builds no installable userscript.
-The fallback explicitly requested by the owner is active because full-file
-redistribution permission for inherited upstream code was not established.
+XXT now contains one engine: the user-developed fork implementation transplanted
+intact around an independently written replacement for its inherited foundation.
+This supersedes the external-canonical fallback. It does not revive the retired
+XXT coordinator or port the fork through that coordinator's interfaces.
 
-Canonical repository: [RXY712200/xuexitongScript](https://github.com/RXY712200/xuexitongScript).
-Pinned revision: `351c08dc4d772908c3d098e8c9160be434bf1064`, branch
-`review/v3.4.0-modular-navigation`.
+**PARTIAL: independent source review and authenticated owner acceptance pending.**
+The working fork and installed script are not changed or automatically replaced.
 
-- [Original complete source](https://github.com/RXY712200/xuexitongScript/blob/351c08dc4d772908c3d098e8c9160be434bf1064/v3_optimized.js)
-- [Original installable in its canonical fork](https://github.com/RXY712200/xuexitongScript/blob/351c08dc4d772908c3d098e8c9160be434bf1064/v3_optimized.user.js)
-- Local source: `D:\xuexitongScript-master\v3_optimized.js`.
-- Local installable: `D:\xuexitongScript-master\v3_optimized.user.js`.
+## Source, artifact and attribution
 
-No copy, downloader, thin loader, modified V3 wrapper or second engine is provided
-here. `dist/XXT.user.js` was withdrawn; `src/entry.js` no longer initializes XXT.
-The old modules/tests/metadata are historical assets, not active production paths.
-Their Git history is preserved. Do not install the old XXT script alongside V3:
-disable the previous XXT installation/console injection and reload before using
-only the canonical fork script. This task does not control the user's installed
-Tampermonkey state or automatically install either script or the optional bridge.
+- Editable production source: `src/entry.js`.
+- Sole generated installable: `dist/XXT.user.js` (development candidate only).
+- Behavior reference: [RXY712200/xuexitongScript at 351c08dc](https://github.com/RXY712200/xuexitongScript/tree/351c08dc4d772908c3d098e8c9160be434bf1064).
+- Inherited foundation reference: [chaolucky18/xuexitongScript at 9a23b357](https://github.com/chaolucky18/xuexitongScript/tree/9a23b357875a72ed9bfd9e652257b0849a6855d7).
+- Source provenance, all 59 commits, exact preserved/adapted ranges and hashes:
+  `provenance/transplant.json` and [migration record](docs/FOUNDATION_TRANSPLANT.md).
 
-## Essential verification
+The owner authorizes their developed additions. No inherited upstream full-file
+license is inferred. Inherited foundation bodies are independently replaced; Git
+additions alone are not treated as ownership proof. No clean-room claim is made.
+All 93 directly retained new functions/methods and 3,029 directly retained Git-added
+nonempty lines are checked against the pinned fork. Mixed adaptations are explicit.
 
-With the existing canonical checkout at its exact pinned branch/commit:
+## Preserved behavior
+
+The fork's own task discovery, sequential/mixed media, document reading, platform
+credit gates, navigation, pacing/rest, recovery, diagnostics, Chinese settings and
+bottom-right status remain in control. Normal speed stays 1.0x. Local ended records
+never become platform credit. Unknown tasks and security hazards retain their
+existing boundaries. Supported and unsupported paths remain those of the fork;
+no reader, live URL, completion API or assessment automation is invented.
+
+Userscript permissions/matches/raw context retain the working fork's existing
+unsafeWindow, GM storage/listener and window.close grants. These explicitly replace
+retired XXT's grant-none metadata; no additional cross-origin grants are introduced.
+Distinct XXT name/namespace prevents overwriting the working V3 installation.
+No optional bridge is bundled or installed. No install/activation is automatic.
+
+## Essential development checks
+
+Node 22+; `npm ci` installs development-only parser, DOM and jQuery test dependencies.
+The read-only pinned checkout is needed for provenance checks at
+`D:\xuexitongScript-master`; building the self-contained entry needs no reference
+source or network download.
 
 ```text
 npm run build
-npm test
+npm run audit:transplant
 npm run check
+npm test
 npm run verify:artifact
-npm ls --omit=dev
 ```
 
-`build` now verifies the external source/artifact and retires only the known old
-XXT artifact hash if it is still present. It never writes to the reference fork or
-creates an XXT bundle. `verify:artifact` is read-only. Missing/drifted source fails;
-there is no automatic download or alternative workspace. Manifest:
-`runtime/canonical.json`; details: [migration record](docs/CANONICAL_RUNTIME_RESTORE.md).
+Nine focused tests check complete-script startup, own UI, reinjection, delayed
+owned media, audio fallback, natural ended/independent credit, guarded one-time
+native navigation, prior-credit non-replay, Stop, recovery and sequential videos.
+These are controlled DOM/media/timer simulations, not actual Tampermonkey, browser
+policy or authenticated Chaoxing verification. Historical rewrite/fallback tests
+are retained but are no longer production contracts.
 
-Three essential tests cover policy/disabled entry, original build/body/metadata
-integrity, and original full-installable bootstrap/reinjection with one active V3
-instance and its original two-area UI on controlled DOM. The old 137 XXT cases and
-its Chromium harness are retired acceptance evidence; they were not changed to
-make V3 fit rewritten interfaces. No authenticated compatibility or release claim.
+Artifact SHA-256:
+`bfc46537cb29ebca49f9c4d65f9562f2ed198068247f85d11f9ec55fdbf1e0e5`.
 
-The original metadata is preserved, including `unsafeWindow`, GM storage/listener
-APIs, `window.close`, `@sandbox raw`, original match patterns and document-idle.
-These differ from the retired XXT grant-none metadata; they are existing fork
-permissions, not silently added XXT grants. Optional live bridge remains separate.
-
-Exact current local installable SHA-256:
-`cb74e06c58f6d68c8c4f75c6a006e6fdf9be5799948ec5669237b4c3ff5cbab0`.
-Pinned Git installable SHA-256:
-`f5c5c5c82148aa566700934c039ad6a870e745e6b383c3739af09dfe2e0d4557`.
-The difference is Git checkout CRLF conversion; neither file was rewritten here.
-See [HANDOFF](docs/HANDOFF.md) and [readiness](docs/RELEASE_READINESS.md).
+No release, tag, deployment or automated installation is provided. Review this
+candidate before replacing anything in the owner's actual browser.

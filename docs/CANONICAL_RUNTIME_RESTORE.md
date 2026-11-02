@@ -1,3 +1,6 @@
+> HISTORICAL: superseded by the owner-authorized foundation replacement and direct
+> transplant. Current state: FOUNDATION_TRANSPLANT.md and HANDOFF.md.
+
 # Canonical fork restoration / redistribution fallback
 
 XXT baseline: `ae9a792c6f658ea4695fec723cb509da68cdb776`. The owner's latest

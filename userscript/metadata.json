@@ -1,10 +1,11 @@
 {
-  "name": "XXT — DEVELOPMENT TEST BUILD",
+  "name": "XXT — V3 移植开发版",
   "namespace": "https://github.com/RXY712200/XXT",
-  "version": "0.1.0",
-  "description": "Development test build; unsupported readers/live tasks remain manual. No authenticated compatibility claim.",
-  "match": ["https://*.chaoxing.com/mycourse/studentstudy*", "https://*.chaoxing.com/mooc2-ans/mycourse/studentstudy*"],
-  "grant": "none",
+  "version": "0.2.0",
+  "description": "独立基础层与用户开发 V3 功能移植；待独立审核和真实环境验收",
+  "author": "RXY712200; developed fork contributions by Codex",
+  "match": ["*://mooc1.chaoxing.com/mycourse/studentstudy*", "*://*.chaoxing.com/mycourse/studentstudy*", "*://*.chaoxing.com/mooc2-ans/mycourse/studentstudy*", "https://zhibo.chaoxing.com/*"],
+  "grant": ["unsafeWindow", "GM_getValue", "GM_setValue", "GM_deleteValue", "GM_addValueChangeListener", "GM_removeValueChangeListener", "window.close"],
   "run-at": "document-idle",
-  "noframes": true
+  "sandbox": "raw"
 }

@@ -1,67 +1,82 @@
-# XXT handoff — original fork is canonical
+# XXT handoff — independent foundation / direct V3 transplant
 
-## Current decision
+## Current scope and Git identity
 
-Starting XXT/main SHA `ae9a792c6f658ea4695fec723cb509da68cdb776`.
-Final SHA is the commit containing this file; compare HEAD with origin/main.
-The owner rejected the rewritten architecture as production preference. Do not
-restart migration, port the old engine to XXT interfaces, or create a new phase.
-The complete original fork at `351c08dc4d772908c3d098e8c9160be434bf1064` is the
-behavior baseline. Full-file redistribution rights were not established, so the
-owner-authorized external-canonical fallback is active. XXT distributes no engine.
+Starting XXT/main: `0d8a0829947cbda4de8f22cace5242cf8d5847b5`.
+Final commit is the commit containing this file; verify HEAD against origin/main.
+The owner explicitly superseded the external-canonical fallback: replace only the
+inherited third-party foundation and directly preserve the developed fork code.
+This correction is not a new phase. Stop after one coherent XXT/main delivery.
 
-## Canonical paths / source identity
+## Canonical paths and references
 
-- XXT reference/control workspace: `D:\XXT`, RXY712200/XXT, main.
-- Read-only canonical source checkout: `D:\xuexitongScript-master`.
-- Origin: RXY712200/xuexitongScript, review/v3.4.0-modular-navigation.
-- Exact source: `D:\xuexitongScript-master\v3_optimized.js`.
-- Exact original installable: `D:\xuexitongScript-master\v3_optimized.user.js`.
-- Never modify these references in XXT work or create a parallel production copy.
-- `runtime/canonical.json` pins commit, source/builder/artifact hashes and metadata.
-- `src/entry.js` is inert; other `src/` modules and userscript metadata are historical.
-- `dist/XXT.user.js` is withdrawn. No replacement wrapper, loader or installer.
+- Target: `D:\XXT`, RXY712200/XXT, main.
+- Only editable production entry: `D:\XXT\src\entry.js`.
+- Only generated installable: `D:\XXT\dist\XXT.user.js`.
+- Build: `scripts/build-userscript.mjs`, metadata `userscript/metadata.json`.
+- Read-only fork: `D:\xuexitongScript-master`, branch
+  review/v3.4.0-modular-navigation at `351c08dc4d772908c3d098e8c9160be434bf1064`.
+- Read-only upstream: `9a23b357875a72ed9bfd9e652257b0849a6855d7`.
+- Reference source/installable: `D:\xuexitongScript-master\v3_optimized.js` and
+  `D:\xuexitongScript-master\v3_optimized.user.js`. Neither was edited/regenerated.
+- Reference original installable disk SHA-256 remains
+  `cb74e06c58f6d68c8c4f75c6a006e6fdf9be5799948ec5669237b4c3ff5cbab0`.
 
-Disk source SHA-256:
-`597653fea61c2bd2527c07209cd5d56c2f37eaba1a0ac5404696aa8d0ae4b554`.
-Disk installable SHA-256:
-`cb74e06c58f6d68c8c4f75c6a006e6fdf9be5799948ec5669237b4c3ff5cbab0`.
-Pinned Git source SHA-256:
-`defc7d519b29150fb66b1858aecd0e2db484b9b5019974d735bf0a9707babb22`.
-Pinned Git artifact SHA-256:
-`f5c5c5c82148aa566700934c039ad6a870e745e6b383c3739af09dfe2e0d4557`.
-Working checkout uses CRLF. Verification checks exact disk hashes, normalized
-pinned blobs, original literal metadata + full original body assembly. It does not
-run the reference builder against disk or write any canonical source file.
+The builder embeds only src/entry.js plus metadata, not the retired XXT module
+registry. Other historical src/ modules remain unmodified/inactive. No wrapper,
+external engine loader, second coordinator or automatic optional bridge.
 
-## Rights and behavior boundary
+## Provenance and preserved contracts
 
-No project LICENSE/COPYING/NOTICE or affirmative grant was found in the pinned
-upstream/fork or reviewed source/READMEs. Current upstream API reports license:null.
-GitHub's view/fork facility does not establish separate full-file redistribution
-permission. See CANONICAL_RUNTIME_RESTORE.md for evidence and official guidance.
-This is not a declaration that the existing fork has acquired a license.
+See FOUNDATION_TRANSPLANT.md and provenance/transplant.json: full source comparison,
+all 59 intervening commits, +3,087/-209 diff, surviving blame, exact segment/function
+hashes and 26 adaptations. No full inherited file copied. Git-added is not ownership
+proof; the owner's authorization and reviewed history support developed-fragment reuse.
+No additional ownership-ambiguous subsystem requiring omission was identified.
+No copyright/legal certainty or clean-room claim is made.
 
-Startup/discovery/playback/completion/navigation/recovery/UI remain byte-identical
-to the canonical engine. Preserve its original sandbox/matches/run-at/grants:
-unsafeWindow, GM get/set/delete/listener/remove-listener and window.close. No
-XXT permission reinterpretation. Do not install optional live bridge automatically.
-No AI/assessment answering/progress fabrication or additional automation was added.
+3,099 nonempty source lines outside adaptations are exact; 3,029 are diff-added.
+93 new functions/methods are fully byte-identical. Shared syntax/API calls are
+separately recorded. New foundation only covers the eight authorized groups:
+startup/lifetime, tree access, basic owned media integration, playback primitives,
+monitoring/recovery hooks, events, native steps and background cleanup. Higher-level
+fork discovery, media/audio/document, completion/navigation, GM, pacing, recovery,
+partial progress, diagnostics and original two-area UI stay in control.
 
-## Verification / historical acceptance
+Explicit Stop, terminal exhaustion, recoverable transitions and automatic block
+remain distinct. `_block`, stopAutomation and bounded recovery are exact developed
+code; no blanket automatic-failure-to-persistent-Stop conversion. Do not refactor
+these subsystems or revive retired XXT interfaces to satisfy historical tests.
 
-Run npm run build, npm test, npm run check, npm run verify:artifact and npm ls --omit=dev.
-Build means external verification, not generation. Missing/drifted checkout fails.
-3 essential tests pass: sole-engine policy/inert entry, original syntax/build
-integrity/metadata, and full original installable initialization plus reinjection
-(old instance destroyed, one live V3 instance/original UI, no XXT runtime).
-The DOM/jQuery/clock environment is controlled; engine methods are not patched.
-This is not real Tampermonkey/GM/browser-policy/authenticated-course acceptance.
-The historical 137 XXT cases/Chromium smoke are not acceptance gates for V3. Their
-assets remain for history; the old browser harness now refuses execution.
+## Metadata / installation boundary
 
-Before real testing, the user must disable previous XXT installs/console injections
-and reload, using only the canonical original script. No installed manager state
-was changed here. Independent review and real-platform testing remain pending.
-Preserve all Git history; push one correction only to XXT/main. No reference writes,
-PR/Issue/tag/release/force-push/deployment. Stop after this delivery.
+Separate XXT name/namespace/version; same original match patterns, document-idle,
+raw sandbox and authorized unsafeWindow/GM storage/listener/window.close grants.
+Retired XXT grant-none/noframes metadata is explicitly superseded for the existing
+GM execution context. No new cross-origin connect/require or update/download URL.
+Optional bridge untouched, unbundled and not installed. No working installation
+or reference repository is modified; installation/activation requires owner action.
+
+## Observed gates
+
+- npm run build: deterministic single-entry build PASS.
+- npm run audit:transplant: exact provenance and reference integrity PASS.
+- npm run check: active syntax/imports, one entry and artifact integrity PASS.
+- npm test: 9 focused tests PASS / 0 FAIL (controlled jsdom/media/timers).
+- npm run verify:artifact: exact disk bytes PASS.
+- npm ls --omit=dev: no production package dependencies.
+- Historical 137 rewrite and three fallback tests remain assets, not acceptance
+  contracts. The retired rewritten Chromium harness remains disabled.
+
+New XXT artifact SHA-256:
+`bfc46537cb29ebca49f9c4d65f9562f2ed198068247f85d11f9ec55fdbf1e0e5`.
+
+## Remaining acceptance limits
+
+PARTIAL pending independent review and owner-authenticated testing. The owner
+reports the original fork works; this candidate is not yet authenticated accepted.
+No actual Tampermonkey sandbox/grant execution, GM pairing, browser popup/close,
+background throttling, real reader geometry or server credit is proved by mocks.
+No claim of universal DOM compatibility, release readiness or stable publication.
+No fork/upstream writes, master changes, PR/Issue/Release/tag/workflow/deployment,
+force-push or automatic browser installation. Stop after delivery.

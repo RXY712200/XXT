@@ -33,7 +33,7 @@ export function verifyTransplant() {
     const actual=entry.slice(segment.targetStart,segment.targetEnd);
     assert.equal(sha256(actual),segment.sha256);
     if(segment.kind==='direct') assert.equal(actual,source.slice(segment.sourceStart,segment.sourceEnd));
-    else assert.equal(segment.kind,'foundation-adaptation');
+    else assert.ok(['foundation-adaptation','developed-maintenance'].includes(segment.kind));
     from=segment.sourceEnd;to=segment.targetEnd;
   }
   assert.equal(from,source.length);assert.equal(to,entry.length);
@@ -69,3 +69,4 @@ export function verifyTransplant() {
     byteIdenticalUserFunctions:manifest.functions.filter(f=>f.classification==='C-user-developed-candidate'&&f.disposition==='byte-identical').length}};
 }
 if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).href) console.log('PASS transplant manifest / reference integrity / no retained foundation bodies\n'+JSON.stringify(verifyTransplant().summary));
+

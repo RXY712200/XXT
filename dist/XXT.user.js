@@ -3319,34 +3319,87 @@
                 const existing=gm.get(key+':claim',null); if(existing?.id===r.id) { notice('回放会话已被其他标签页申请，拒绝重复接管'); return; }
                 const child=random(), childHref=env.location.href; gm.set(key+':claim',{id:r.id,nonce:r.nonce,child,ids,created:now()});
                 let player, initial, progressed=false, started=false, lastResume=0, playPending=false, attempted=false, lastPosition=0, lastProgress=now(), pulseSeq=0;
+                let disposed=false, mutedFallbackUsed=false, autoplayFailed=false, playbackState='waiting', errorName=null, closeTimer, closeNoticeTimer;
                 const valid = () => { const current=gm.get(key,null); return fresh(current)&&current.id===r.id&&current.nonce===r.nonce&&current.child===child&&current.phase==='active'&&env.location.href===childHref&&now()-current.heartbeat<180000&&current.videoEnabled!==false&&matches(r.ids,identities())&&adapter.isRecognized(); };
+                const ownsPlayer = () => !disposed && !completed && valid() && player?.isConnected && player===adapter.getPlayer();
+                const detach = () => {
+                    env.clearInterval(childTimer);
+                    player?.removeEventListener('ended',finish);
+                    player?.removeEventListener('timeupdate',onProgress);
+                    env.removeEventListener('pagehide',dispose);
+                };
+                const dispose = () => {
+                    disposed=true;playPending=false;detach();
+                    env.clearTimeout(closeTimer);env.clearTimeout(closeNoticeTimer);
+                };
+                const onProgress = () => {
+                    if(!ownsPlayer())return;
+                    if(player.currentTime>initial)progressed=true;
+                    if(player.currentTime>lastPosition){
+                        lastPosition=player.currentTime;lastProgress=now();
+                        if(!player.paused&&!player.ended){autoplayFailed=false;errorName=null;playbackState='progressing';}
+                    }
+                };
+                const requestPlayback = async () => {
+                    if(!ownsPlayer()||player.ended||playPending||autoplayFailed)return;
+                    lastResume=now();attempted=true;playPending=true;
+                    playbackState=player.muted?'requesting-muted':'requesting-audible';
+                    notice(player.muted?'正在请求静音回放播放（1.0x）':'正在请求有声回放播放（1.0x）');
+                    try {
+                        try { await player.play(); }
+                        catch(error) {
+                            if(!ownsPlayer()||player.ended)return;
+                            errorName=error?.name||'UnknownError';
+                            // A user may have started playback while the request was pending.
+                            if(!player.paused){playbackState='started';return;}
+                            if(errorName!=='NotAllowedError'||mutedFallbackUsed)throw error;
+                            mutedFallbackUsed=true;player.muted=true;player.playbackRate=1;
+                            playbackState='requesting-muted';
+                            notice('有声自动播放被拒绝，正在尝试同一播放器静音播放（1.0x）');
+                            await player.play();
+                        }
+                        if(!ownsPlayer()||player.ended)return;
+                        errorName=null;playbackState='started';
+                        notice('播放请求已成功，等待实际播放进度（1.0x）');
+                    } catch(error) {
+                        if(!ownsPlayer()||player.ended)return;
+                        errorName=error?.name||'UnknownError';
+                        if(!player.paused){playbackState='started';return;}
+                        autoplayFailed=true;playbackState='failed';
+                        notice(`回放自动播放失败（${errorName}），请使用原播放器手动播放；未认定完成`);
+                    } finally { playPending=false; }
+                };
                 const finish = () => {
-                    if(completed || !valid() || !player?.ended || !progressed || player!==adapter.getPlayer()) return;
-                    completed=true;env.clearInterval(childTimer);const current=gm.get(key,null);save({...current,phase:'ended',seq:2});
+                    if(disposed || completed || !valid() || !player?.ended || !progressed || player!==adapter.getPlayer()) return;
+                    completed=true;playbackState='ended';playPending=false;detach();const current=gm.get(key,null);save({...current,phase:'ended',seq:2});
                     notice('回放已自然结束；课程窗口将独立核对平台信用');
-                    env.setTimeout(()=>{const terminal=gm.get(key,null);if(!fresh(terminal)||terminal.id!==r.id||terminal.child!==child||env.location.href!==childHref||!adapter.isRecognized()||adapter.getPlayer()!==player||!player.ended)return;try{gm.close();}catch(_){}env.setTimeout(()=>notice('浏览器未允许关闭，请手动关闭本回放标签页；不会重复打开'),1500);},2000);
+                    closeTimer=env.setTimeout(()=>{const terminal=gm.get(key,null);if(disposed||!fresh(terminal)||terminal.id!==r.id||terminal.child!==child||env.location.href!==childHref||!adapter.isRecognized()||adapter.getPlayer()!==player||!player.ended)return;try{gm.close();}catch(_){}closeNoticeTimer=env.setTimeout(()=>{if(!disposed)notice('浏览器未允许关闭，请手动关闭本回放标签页；不会重复打开');},1500);},2000);
                 };
                 const tick = () => {
+                    if(disposed||completed)return;
                     const current=gm.get(key,null);
-                    if(!fresh(current)||current.id!==r.id||!['pending','active'].includes(current.phase)){env.clearInterval(childTimer);return;}
+                    if(!fresh(current)||current.id!==r.id||!['pending','active'].includes(current.phase)){dispose();return;}
                     if(current.phase==='pending'){notice('等待课程窗口确认回放会话');return;}
-                    if(!valid()){env.clearInterval(childTimer);notice('会话身份或播放器已变化，停止自动控制');return;}
+                    if(!valid()){dispose();notice('会话身份或播放器已变化，停止自动控制');return;}
                     gm.set(key+':child',{id:r.id,nonce:r.nonce,child,at:now(),seq:++pulseSeq});
                     const candidate=adapter.getPlayer();
                     if(!started){
-                        if(!candidate||candidate.ended){notice('已结束或未就绪的播放器不能证明本会话播放完成');return;}
-                        player=candidate;initial=player.currentTime;started=true;player.addEventListener('ended',finish);
-                        player.addEventListener('timeupdate',()=>{if(valid()&&player.currentTime>initial)progressed=true;});
-                        env.addEventListener('pagehide',()=>{env.clearInterval(childTimer);player.removeEventListener('ended',finish);});
+                        if(!candidate){notice('已匹配课程会话，等待回放播放器就绪');return;}
+                        if(candidate.ended){notice('已结束的播放器不能证明本会话播放完成');return;}
+                        player=candidate;initial=lastPosition=player.currentTime;started=true;
+                        player.addEventListener('ended',finish);player.addEventListener('timeupdate',onProgress);
+                        env.addEventListener('pagehide',dispose);
+                        notice('已匹配课程会话，等待回放播放器就绪');
                     }
-                    if(candidate!==player){env.clearInterval(childTimer);notice('播放器已替换，请手动处理');return;}
+                    if(candidate!==player){dispose();notice('播放器已替换，请手动处理');return;}
                     player.playbackRate=1;
-                    if(player.currentTime>initial)progressed=true;
-                    if(player.currentTime!==lastPosition){lastPosition=player.currentTime;lastProgress=now();}
-                    if((player.paused||(current.background&&now()-lastProgress>7000))&&!player.ended&&!playPending&&(!attempted||current.background)&&now()-lastResume>1500){lastResume=now();attempted=true;playPending=true;Promise.resolve(player.play()).catch(()=>notice('浏览器拒绝回放播放，请点击原播放器；不会视为完成')).finally(()=>{playPending=false;});}
-                    notice('已匹配课程会话，回放正常播放（1.0x），等待自然结束');
+                    onProgress();
+                    if(player.ended)return;
+                    if(playPending||autoplayFailed)return;
+                    if((player.paused||(current.background&&now()-lastProgress>7000))&&(!attempted||current.background)&&now()-lastResume>1500){requestPlayback();return;}
+                    if(!player.paused)notice(playbackState==='progressing'?'回放进度正常（1.0x），等待自然结束':'播放已启动，等待实际播放进度（1.0x）');
                 };
-                env.__xuexitongLiveChild={gmSession:true,dispose(){env.clearInterval(childTimer);if(player)player.removeEventListener('ended',finish);}};
+                env.__xuexitongLiveChild={gmSession:true,dispose,get playbackStatus(){return {state:playbackState,errorName,mutedFallbackUsed,playPending};}};
                 childTimer=env.setInterval(tick,1000);tick();
             },
         };

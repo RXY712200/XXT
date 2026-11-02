@@ -7,7 +7,7 @@
     "node": ">=22"
   },
   "scripts": {
-    "test": "node --test tests/transplanted-runtime.test.js",
+    "test": "node --test tests/transplanted-runtime.test.js tests/replay-child.test.js",
     "check": "node scripts/check.mjs",
     "build": "node scripts/build-userscript.mjs",
     "verify:artifact": "node scripts/build-userscript.mjs --check",

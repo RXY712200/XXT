@@ -1,3 +1,27 @@
+## Current correction: cross-lesson replay session lock
+
+Baseline: 30a3d2c9ff96bdfed289a1b391e3b7330ff374d1. Migration is complete;
+owner reports broad authenticated operation. This candidate is not yet authenticated accepted.
+Only GM begin/waitingFor, child disposal and native-open refusal state changed.
+Cross-lesson admission now checks matching child pulse, parent pulse, claim and binding
+windows (pending 120s / child 180s), not just 4h expiry. A live matching child still
+blocks even if the outer record expires. Orphans are re-read before cancellation;
+ID/nonce/phase/owner timestamps and late matching pulse/claim are checked again.
+GM storage has no compare-and-swap: these checks reduce races but do not claim atomicity.
+Disposal/pagehide cancels only this exact child's unfinished active record, idempotently.
+Completed/newer records remain untouched. Existing same-lesson retry budget is unchanged.
+Refused native opening no longer claims WAITING_LIVE for another lesson; an adopted
+valid current-lesson session still waits. No click is made on refusal.
+The audible/muted request implementation is byte-identical to baseline (test).
+Parent terminal credit rules, grants, foundation and all unrelated code remain frozen.
+Provenance records affected native-open/GM maintenance ranges and hashes; conservative
+outside-maintenance exact counts are now 2927 nonempty / 2857 diff-added / 91 functions.
+Build/audit/check/tests/artifact synchronization pass. See replay-child tests for
+controlled GM/media/clock evidence; no actual browser popup or platform PASS claimed.
+Artifact SHA-256: 53471e8354badc3b2a7ee32fd34c2f915a608a77b437a25e9abf46b25f87d2ad.
+Reference fork and optional companion remain untouched. Stop after one XXT/main commit.
+Historical migration details below are retained, not current artifact hashes/counts.
+
 # XXT handoff — independent foundation / direct V3 transplant
 
 ## Current scope and Git identity

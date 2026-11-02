@@ -1514,9 +1514,13 @@
             _openNativeLink(task, scope, manual) {
                 const media = this._playableMedia();
                 if (!scope.validateScope() || (media.unsupported && !media.localExecutionEligible) || media.inaccessible || media.videos.length || this._verificationPresent()) return this._block('直播入口与任务范围不一致');
-                this._state = 'WAITING_LIVE'; this._isPlaying = false;
                 this._detectedKind = '直播 / 回放';
-                if (gmLive && !gmLive.begin(this, task, scope, manual)) return;
+                if (gmLive && !gmLive.begin(this, task, scope, manual)) {
+                    if(gmLive.waitingFor(this))this._state='WAITING_LIVE';
+                    else if(!['ADVANCING','NAVIGATION_COOLDOWN','BLOCKED'].includes(this._state))this._state='PAUSED_AUTOMATION';
+                    this._manualBusy=false;return;
+                }
+                this._state = 'WAITING_LIVE'; this._isPlaying = false;
                 if (!manual) {
                     this._nativeOpenAttempts ||= new WeakSet();
                     if (gmLive || !this._nativeOpenAttempts.has(task.element)) { this._nativeOpenAttempts.add(task.element); task.element.click(); }
@@ -3238,6 +3242,7 @@
         return {
             openingNotice() { const r=gm.get(key,null); return r?.id===owned&&r.autoRecovered ? '已恢复失效会话，已请求原生打开，正在等待 GM 子页配对' : '已请求打开原生回放，等待 GM 子页配对；配对后将自动核对平台信用'; },
             restore(app) { const r=gm.get(key,null); return returnCredit(app,r); },
+            waitingFor(app) { const r=gm.get(key,null);return fresh(r)&&['pending','active'].includes(r.phase)&&owned===r.id&&r.generation===app._generation&&r.lesson===catalog.current()?.id&&matches(r.ids,identities()); },
             retryBlocked(app) {
                 const r=gm.get(key,null); if(!fresh(r)||r.lesson!==catalog.current()?.id||!matches(r.ids,identities()))return false;
                 const pulse=gm.get(key+':child',null), claim=gm.get(key+':claim',null);
@@ -3250,6 +3255,34 @@
                 const ids=identities();
                 if (!ids?.course || (!ids.clazz && !ids.lesson)) { app._notify('回放会话缺少可匹配的课程/班级/章节标识，请手动打开和返回'); return manual; }
                 let r=gm.get(key,null), recovered=false;
+                if(r && (r.lesson!==catalog.current()?.id || !matches(r.ids,ids)) && ['pending','active'].includes(r.phase)) {
+                    const pulse=gm.get(key+':child',null),claim=gm.get(key+':claim',null);
+                    const recent=time=>Number.isFinite(time)&&time>=r.created&&time<=now()&&now()-time<=180000;
+                    const childAlive=pulse?.id===r.id&&pulse.nonce===r.nonce&&pulse.child===r.child&&recent(pulse.at);
+                    const parentAlive=recent(r.heartbeat);
+                    const claimAlive=claim?.id===r.id&&claim.nonce===r.nonce&&matches(r.ids,claim.ids)&&
+                        Number.isFinite(claim.created)&&claim.created>=r.created&&claim.created<=now()&&now()-claim.created<=120000;
+                    const pendingAlive=r.phase==='pending'&&Number.isFinite(r.created)&&now()-r.created<=120000;
+                    const bindingGrace=r.phase==='active'&&recent(r.childBoundAt)&&parentAlive;
+                    if(childAlive || (fresh(r)&&(pendingAlive || (claimAlive&&parentAlive) || bindingGrace))) {
+                        app._notify('另一个回放会话仍有效，拒绝并行打开');return false;
+                    }
+                    const current=gm.get(key,null);
+                    if(current?.id!==r.id||current.nonce!==r.nonce||current.phase!==r.phase||current.heartbeat!==r.heartbeat||current.childBoundAt!==r.childBoundAt||current.child!==r.child) {
+                        app._notify('回放会话正在变化，本次未打开；请重新检测');return false;
+                    }
+                    const latestPulse=gm.get(key+':child',null);
+                    const latestClaim=gm.get(key+':claim',null);
+                    if(r.phase==='pending'&&latestClaim?.id===r.id&&latestClaim.nonce===r.nonce&&matches(r.ids,latestClaim.ids)&&
+                        Number.isFinite(latestClaim.created)&&latestClaim.created>=r.created&&latestClaim.created<=now()&&now()-latestClaim.created<=120000&&parentAlive) {
+                        app._notify('另一个回放会话已有有效申请，拒绝并行打开');return false;
+                    }
+                    if(latestPulse?.id===r.id&&latestPulse.nonce===r.nonce&&latestPulse.child===r.child&&recent(latestPulse.at)) {
+                        app._notify('另一个回放子页仍在活动，拒绝并行打开');return false;
+                    }
+                    save({...current,phase:'cancelled',reason:'cross-lesson-orphan'});
+                    r=null;
+                }
                 if (r && r.lesson === catalog.current()?.id && matches(r.ids,ids)) {
                     if (['ended','verify','done'].includes(r.phase)) {
                         if (!returnCredit(app,r)) {
@@ -3308,6 +3341,11 @@
                     env.removeEventListener('pagehide',dispose);
                 };
                 const dispose = () => {
+                    if(disposed)return;
+                    const current=gm.get(key,null);
+                    if(!completed&&current?.id===r.id&&current.nonce===r.nonce&&current.child===child&&current.phase==='active') {
+                        save({...current,phase:'cancelled',reason:'child-disposed'});
+                    }
                     disposed=true;playPending=false;detach();
                     env.clearTimeout(closeTimer);env.clearTimeout(closeNoticeTimer);
                 };

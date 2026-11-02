@@ -108,3 +108,7 @@ is consistent. Evidence is synthetic and controlled Chrome only.
 F05 final identity repair: exact unique active, distinct numbered and ambiguous
 generic/numbered outcomes; controlled native trusted mouse integration tested
 on a synthetic page. Actual Chaoxing acceptance remains pending.
+
+F31 two-area UI restored: persistent bottom-right notice and top-right learning
+settings with grouped controls. Native computed layout/pointer checks at desktop
+and 320px width passed; real course control overlap remains unverified.

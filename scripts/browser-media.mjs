@@ -110,12 +110,19 @@ try {
   const userscript=await readFile(resolve(root,'dist/XXT.user.js'),'utf8');
   const installed=await send('Runtime.evaluate',{expression:userscript+'\nwindow.__testXXT=window.XXT;({paused:window.XXT.view().message,panels:document.querySelectorAll("#xxt-control").length});',returnByValue:true},sessionId);
   assert.equal(installed.exceptionDetails,undefined);assert.equal(installed.result.value.panels,1);assert.match(installed.result.value.paused,/停止/);
-  const reinjected=await send('Runtime.evaluate',{expression:userscript+'\nwindow.__testXXT===window.XXT && document.querySelectorAll("#xxt-control").length===1;',returnByValue:true},sessionId);
+  const reinjected=await send('Runtime.evaluate',{expression:userscript+'\nwindow.__testXXT===window.XXT && document.querySelectorAll("#xxt-control").length===1 && document.querySelectorAll("#xxt-notice").length===1;',returnByValue:true},sessionId);
   assert.equal(reinjected.result.value,true);
   await pageReady(()=>send('Page.reload',{},sessionId));
   const reloaded=await send('Runtime.evaluate',{expression:userscript+'\n({paused:window.XXT.view().message,panels:document.querySelectorAll("#xxt-control").length});',returnByValue:true},sessionId);
   assert.equal(reloaded.exceptionDetails,undefined);assert.equal(reloaded.result.value.panels,1);assert.match(reloaded.result.value.paused,/停止/);
   console.log('PASS native Chrome generated artifact/UI duplicate-injection and persisted Stop/reload; synthetic intercepted page, no authenticated platform evidence.');
+  for(const [width,height] of [[1280,900],[320,480]]) {
+    await send('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:false},sessionId);
+    const layout=await send('Runtime.evaluate',{expression:`(()=>{const top=document.querySelector('#xxt-control'),bottom=document.querySelector('#xxt-notice'),r=top.shadowRoot,q=bottom.shadowRoot;const details=r.querySelector('details');details.open=true;q.querySelector('[role=status]').textContent='需要人工处理的长中文状态说明'.repeat(30);const a=top.getBoundingClientRect(),b=bottom.getBoundingClientRect(),section=r.querySelector('section');return {top:getComputedStyle(top).top,right:getComputedStyle(top).right,bottom:getComputedStyle(bottom).bottom,hostPointer:getComputedStyle(top).pointerEvents,detailPointer:getComputedStyle(details).pointerEvents,scroll:getComputedStyle(section).overflowY,inside:a.left>=0&&b.left>=0&&a.right<=innerWidth&&b.right<=innerWidth,separate:a.bottom<=b.top,sectionHeight:section.clientHeight,noticeHeight:b.height,settingsHit:document.elementFromPoint(a.left+20,a.top+10)===top,noticeHit:document.elementFromPoint(b.left+15,b.bottom-15)===bottom};})()`,returnByValue:true},sessionId);
+    assert.equal(layout.exceptionDetails,undefined);const v=layout.result.value;assert.equal(v.top,'8px');assert.equal(v.right,'8px');assert.equal(v.bottom,'86px');assert.equal(v.hostPointer,'none');assert.equal(v.detailPointer,'auto');assert.equal(v.scroll,'auto');assert.equal(v.inside,true);assert.equal(v.separate,true);assert.equal(v.settingsHit,true);assert.equal(v.noticeHit,true);
+    console.log('PASS native two-area layout:',width,height,JSON.stringify(v));
+  }
+  await send('Emulation.setDeviceMetricsOverride',{width:1280,height:900,deviceScaleFactor:1,mobile:false},sessionId);
   const prepareTabs = `(stopAfterClick=false)=>{
     window.XXT.dispose();document.body.innerHTML='<div class="prev_title" title="1视频"></div><div id="coursetree"><div id="unit" class="posCatalog_select posCatalog_active"><span class="posCatalog_name">Synthetic</span><input class="jobUnfinishCount" value="1"></div></div><button class="prev_white">2视频</button><iframe info="card"></iframe>';
     window.__tabs={old:0,next:0,pauses:0,trusted:0};

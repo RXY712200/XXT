@@ -10,8 +10,8 @@ Canonical source: existing src ES modules; entry src/entry.js.
 Metadata: userscript/metadata.json. Sole generated file: D:\XXT\dist\XXT.user.js.
 Never hand-edit it. npm run build; npm run verify:artifact; Get-FileHash SHA256.
 Exact installable SHA-256:
-04bcbfc826fd7c5c4d27f5116f536f6865b262871d612facdc8575081fa38373
-Current correction: 85 PASS / 0 FAIL; syntax 37 files, production imports 24.
+d24ed83b799fdb6987a74063c621843fbcee6a507e6a6dfb4c9d66c7d45d085f
+Current correction: 87 PASS / 0 FAIL; syntax 38 files, production imports 24.
 Build/verification/PowerShell hash agree; no production dependencies.
 
 See PHASE_V.md and RELEASE_READINESS.md for contracts, evidence and blockers.
@@ -28,7 +28,7 @@ Pre-acceptance consolidation starting SHA 5f91168074a8df13af850080178e45f43cb980
 Native objective/video-tab handling, specific non-executable special recognition
 and fresh UI credit validation added; FEATURE_GAP_CLOSURE.md classifies all 37.
 Final consolidation: 81 synthetic cases; authenticated acceptance PENDING.
-Current artifact SHA-256: 04bcbfc826fd7c5c4d27f5116f536f6865b262871d612facdc8575081fa38373
+Current artifact SHA-256: d24ed83b799fdb6987a74063c621843fbcee6a507e6a6dfb4c9d66c7d45d085f
 
 Targeted correction baseline: 6c3ef4d454a3617e71cf5fcf945e76ace824db99.
 Initial/explicit objective transitions share one operation. Rescan preserves Stop;
@@ -47,4 +47,27 @@ actual trusted listener integration, transition acknowledgement, active re-click
 ambiguous no-op and Stop. Media in that mouse test is mocked; no authenticated
 platform acceptance is claimed. Existing native media/HTML/artifact smoke passes.
 Coordinator, scheduler, completion/navigation gates and media adapters unchanged.
-Current sole artifact SHA-256: 04bcbfc826fd7c5c4d27f5116f536f6865b262871d612facdc8575081fa38373
+Current sole artifact SHA-256: d24ed83b799fdb6987a74063c621843fbcee6a507e6a6dfb4c9d66c7d45d085f
+
+## Two-area UI correction
+
+Starting baseline 76c1411dc934d982bb10021ae3a85d319b8e772c. Read-only pinned
+fork 351c08dc4d772908c3d098e8c9160be434bf1064 confirmed notice right=8px,
+bottom=86px, max-width=290px and top settings right/top=8px, 264px content,
+65vh maximum, Chinese learning-settings summary and collapsible task/diagnostics.
+Independent XXT code restores two Shadow hosts, one renderer/cleanup, always-visible
+polite notice and supported quick actions, grouped detailed settings and report
+selection. No fake manual type selector or inert legacy controls were added.
+Quick re-detection calls the existing explicit Start operation, including storage/
+Stop validation; no UI completion or navigation authority.
+All runtime/media/core/settings/diagnostic logic is byte-unchanged; only UI source,
+focused tests/harness, evidence docs and regenerated installable changed.
+87 PASS / 0 FAIL, previous 85 retained; syntax 38, imports 24; no runtime deps.
+Native Chromium computed geometry at 1280x900 and 320x480 with long Chinese text
+verified 8px top/right, 86px bottom, separate visible hosts, internal scrolling,
+no offscreen bounds and actual pointer hit-testing. Settings content heights were
+261px/140px, notice heights 274px/169px. Narrow-view overlap found during QA was
+corrected with a responsive upper height cap. No private screenshots committed.
+Full native media/reader/generated-injection/trusted-tab smoke passed. These are
+synthetic page checks, not authenticated course layout or compatibility acceptance.
+Current artifact SHA-256: d24ed83b799fdb6987a74063c621843fbcee6a507e6a6dfb4c9d66c7d45d085f

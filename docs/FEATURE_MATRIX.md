@@ -1,3 +1,9 @@
+> CURRENT OWNER DECISION after ae9a792: this matrix is historical evidence for the
+> retired rewrite, not a production runtime contract. The complete original fork
+> 351c08dc is canonical. Redistribution permission was not established, so XXT
+> bundles no engine; see CANONICAL_RUNTIME_RESTORE.md. No row below implies that
+> rewritten behavior, diagnostic schema or UI is imposed on the original V3.
+
 # Feature matrix — Phase I baseline / Phase V status
 
 This is a requirements inventory, not an implementation or acceptance report.

@@ -1,29 +1,10 @@
-import { readdirSync, readFileSync } from 'node:fs';
-import { resolve, relative, dirname } from 'node:path';
-import { pathToFileURL } from 'node:url';
 import { execFileSync } from 'node:child_process';
-import assert from 'node:assert/strict';
-import { artifactPath, verifyArtifact } from './build-userscript.mjs';
-
-const root = resolve(import.meta.dirname, '..');
-function files(directory) {
-  return readdirSync(directory, { withFileTypes: true }).flatMap(item => item.isDirectory() ? files(resolve(directory, item.name)) : /\.(js|mjs)$/.test(item.name) ? [resolve(directory, item.name)] : []);
-}
-const production = files(resolve(root, 'src'));
-const checked = [...production, ...files(resolve(root, 'tests')), ...files(resolve(root, 'scripts'))];
-for (const file of checked) execFileSync(process.execPath, ['--check', file]);
-for (const file of production) {
-  const source = readFileSync(file, 'utf8');
-  for (const [, specifier] of source.matchAll(/from\s+['"]([^'"]+)['"]/g)) {
-    assert.ok(specifier.startsWith('.'), `No runtime external dependency: ${relative(root, file)}`);
-    assert.ok(!relative(resolve(root, 'src'), resolve(dirname(file), specifier)).startsWith('..'), 'No external reference-repository imports');
-  }
-  const nativePort = ['src/runtime/native-navigation.js','src/runtime/native-tabs.js'].includes(relative(root, file).replaceAll('\\', '/'));
-  assert.ok(!/\.(?:scrollTo|scrollBy)\s*\(|\bwindow\.open\s*\(|\bfetch\s*\(/.test(source), 'No unauthorized browser/network actions');
-  if (!nativePort) assert.ok(!/\.click\s*\(/.test(source), 'Catalog activation stays in native navigation port');
-  if (relative(root, file).replaceAll('\\', '/') !== 'src/adapters/media.js') assert.ok(!/\.(?:play|pause)\s*\(/.test(source), 'Media effects stay in shared adapter');
-  await import(pathToFileURL(file));
-}
-execFileSync(process.execPath, ['--check', artifactPath]);
-verifyArtifact();
-console.log(`PASS syntax: ${checked.length + 1} files; production imports: ${production.length}; exact generated artifact; no external runtime dependency or unauthorized browser actions`);
+import { Script } from 'node:vm';
+import { resolve } from 'node:path';
+import { root, verifyDistribution } from './canonical-runtime.mjs';
+const result=verifyDistribution();
+for(const file of ['src/entry.js','scripts/canonical-runtime.mjs','scripts/build-userscript.mjs','scripts/check.mjs','tests/canonical-runtime.test.js'])
+  execFileSync(process.execPath,['--check',resolve(root,file)]);
+new Script(result.source.toString(),{filename:'pinned-v3-source.js'});
+new Script(result.artifact.toString(),{filename:'pinned-v3-installable.user.js'});
+console.log('PASS active tooling and unchanged canonical source/installable syntax, metadata, hashes, build integrity and retired XXT entry');

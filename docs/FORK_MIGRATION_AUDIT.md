@@ -1,5 +1,24 @@
 # Fork migration audit — integrated follow-up / PARTIAL platform acceptance
 
+## Superseding owner decision — original complete engine, external distribution
+
+Starting XXT SHA ae9a792c6f658ea4695fec723cb509da68cdb776. The owner now chooses
+the complete original fork 351c08dc as the single behavior baseline, and explicitly
+rejects further reconstruction using XXT interfaces. Earlier migration sections
+below are historical only. Git history and source attribution are preserved.
+
+Full-file redistribution rights for inherited upstream implementation were not
+established: pinned trees/readmes/code have no affirmative license grant; current
+upstream metadata reports license:null. Therefore the authorized fallback keeps
+the original fork as canonical runtime distribution. No full-file copy or thin
+loader is introduced in XXT; old dist output is removed and rewritten entry is inert.
+The actual complete external engine is verified by pinned hashes, original builder
+assembly, exact original metadata and a one-active-instance/reinjection smoke.
+No engine method is adapted to old XXT tests. Three essential cases pass; the old
+137 rewrite scenarios are no longer applicable production acceptance evidence.
+No rights for the existing fork are newly asserted. Details/limits and official
+licensing guidance: CANONICAL_RUNTIME_RESTORE.md. No reference writes or companion.
+
 ## Current runtime/status and optional-assessment correction
 
 Baseline `7c5767b1fc9a724618a114cd2a755b9088012808`. New actual reuse is the

@@ -1,0 +1,22 @@
+{
+  "mode": "external-canonical-fork",
+  "repository": "https://github.com/RXY712200/xuexitongScript",
+  "branch": "review/v3.4.0-modular-navigation",
+  "commit": "351c08dc4d772908c3d098e8c9160be434bf1064",
+  "localDirectory": "D:/xuexitongScript-master",
+  "source": "v3_optimized.js",
+  "artifact": "v3_optimized.user.js",
+  "builder": "scripts/build-userscript.mjs",
+  "sourceGitSha256": "defc7d519b29150fb66b1858aecd0e2db484b9b5019974d735bf0a9707babb22",
+  "artifactGitSha256": "f5c5c5c82148aa566700934c039ad6a870e745e6b383c3739af09dfe2e0d4557",
+  "builderGitSha256": "2f70b1351ba5bd2b21f6b508932d2ba297129f689437e6b012b5d67f5f0be6e0",
+  "retiredXxtArtifactSha256": "e1716cafd3b8113b49bb3edc5164a40565154399e8e11846035a7ef4c0e22a8e",
+  "upstreamRepository": "https://github.com/chaolucky18/xuexitongScript",
+  "upstreamCommit": "9a23b357875a72ed9bfd9e652257b0849a6855d7",
+  "redistribution": "not-established-no-full-file-copy",
+  "optionalBridgeInstalled": false,
+  "grants": ["unsafeWindow", "GM_getValue", "GM_setValue", "GM_deleteValue", "GM_addValueChangeListener", "GM_removeValueChangeListener", "window.close"],
+  "matches": ["*://mooc1.chaoxing.com/mycourse/studentstudy*", "*://*.chaoxing.com/mycourse/studentstudy*", "*://*.chaoxing.com/mooc2-ans/mycourse/studentstudy*", "https://zhibo.chaoxing.com/*"],
+  "sandbox": "raw",
+  "runAt": "document-idle"
+}

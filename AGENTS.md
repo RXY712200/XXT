@@ -1,5 +1,29 @@
 # XXT collaboration rules
 
+## Current owner decision — takes precedence over historical rewrite rules
+
+- Starting baseline ae9a792c6f658ea4695fec723cb509da68cdb776. The complete original
+  fork at 351c08dc4d772908c3d098e8c9160be434bf1064 is the behavior baseline, not
+  XXT's inventory/coordinator/navigation implementation. Do not port it again.
+- Full-file inherited redistribution permission was not established. The explicitly
+  authorized fallback is active: keep the existing fork as canonical distribution;
+  no complete source copy, mirrored installable, downloader or wrapper in XXT.
+- Canonical read-only source: D:\xuexitongScript-master\v3_optimized.js. Original
+  installable: D:\xuexitongScript-master\v3_optimized.user.js. Preserve its exact
+  source, original two-area UI, metadata and grants; no source-fork/upstream writes.
+- src/entry.js is inert. Other rewritten modules, tests and userscript metadata
+  remain historical assets. dist/XXT.user.js is withdrawn; never regenerate it
+  from those modules. scripts/build-userscript.mjs now verifies the pinned external
+  source/artifact only and retires the known previous XXT artifact hash.
+- npm test selects only three canonical integrity/bootstrap tests. Historical
+  rewritten suites and native harness are no longer production acceptance gates;
+  do not change original V3 behavior to make them pass. Preserve Git history.
+- Never initialize both engines or automatically install the optional live bridge.
+  Real manager state/authenticated compatibility is unverified. Stop after this
+  coherent XXT/main delivery for independent review; no release/deployment.
+- See docs/CANONICAL_RUNTIME_RESTORE.md and current HANDOFF. Historical constraints
+  below apply only where compatible with this explicit architecture decision.
+
 ## Authority and scope
 
 - The user owns product requirements and final authorization. ChatGPT owns

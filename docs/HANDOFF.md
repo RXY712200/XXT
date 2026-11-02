@@ -1,80 +1,67 @@
-# XXT handoff — navigation/status correction candidate
+# XXT handoff — original fork is canonical
 
-## Current scope and Git verification
+## Current decision
 
-- Canonical root `D:\XXT`, repository `RXY712200/XXT`, authorized branch `main`.
-- Starting baseline `7c5767b1fc9a724618a114cd2a755b9088012808`.
-- Final SHA is the commit containing this handoff; verify `git rev-parse HEAD`
-  against `git ls-remote origin refs/heads/main`. No self-referential SHA.
-- Five phases / ten steps unchanged. This is the authorized correction, not a
-  new phase. Independent ChatGPT review and authenticated acceptance are pending.
-- The accepted three state repairs and prior-credit reconciliation remain.
-  Durable local end never supplies platform credit; explicit Stop remains durable.
+Starting XXT/main SHA `ae9a792c6f658ea4695fec723cb509da68cdb776`.
+Final SHA is the commit containing this file; compare HEAD with origin/main.
+The owner rejected the rewritten architecture as production preference. Do not
+restart migration, port the old engine to XXT interfaces, or create a new phase.
+The complete original fork at `351c08dc4d772908c3d098e8c9160be434bf1064` is the
+behavior baseline. Full-file redistribution rights were not established, so the
+owner-authorized external-canonical fallback is active. XXT distributes no engine.
 
-## Canonical source and artifact
+## Canonical paths / source identity
 
-Existing ES modules under `D:\XXT\src`; entry `src/entry.js`.
-Sole generated installable `D:\XXT\dist\XXT.user.js`.
-Never edit it manually: `npm run build`, then `npm run verify:artifact`.
-SHA-256: `e1716cafd3b8113b49bb3edc5164a40565154399e8e11846035a7ef4c0e22a8e`.
+- XXT reference/control workspace: `D:\XXT`, RXY712200/XXT, main.
+- Read-only canonical source checkout: `D:\xuexitongScript-master`.
+- Origin: RXY712200/xuexitongScript, review/v3.4.0-modular-navigation.
+- Exact source: `D:\xuexitongScript-master\v3_optimized.js`.
+- Exact original installable: `D:\xuexitongScript-master\v3_optimized.user.js`.
+- Never modify these references in XXT work or create a parallel production copy.
+- `runtime/canonical.json` pins commit, source/builder/artifact hashes and metadata.
+- `src/entry.js` is inert; other `src/` modules and userscript metadata are historical.
+- `dist/XXT.user.js` is withdrawn. No replacement wrapper, loader or installer.
 
-## Implemented correction
+Disk source SHA-256:
+`597653fea61c2bd2527c07209cd5d56c2f37eaba1a0ac5404696aa8d0ae4b554`.
+Disk installable SHA-256:
+`cb74e06c58f6d68c8c4f75c6a006e6fdf9be5799948ec5669237b4c3ff5cbab0`.
+Pinned Git source SHA-256:
+`defc7d519b29150fb66b1858aecd0e2db484b9b5019974d735bf0a9707babb22`.
+Pinned Git artifact SHA-256:
+`f5c5c5c82148aa566700934c039ad6a870e745e6b383c3739af09dfe2e0d4557`.
+Working checkout uses CRLF. Verification checks exact disk hashes, normalized
+pinned blobs, original literal metadata + full original body assembly. It does not
+run the reference builder against disk or write any canonical source file.
 
-- Adapted user-authored `_targetAfter` / `_assessmentTarget` from pinned fork
-  `351c08dc4d772908c3d098e8c9160be434bf1064`; predicates/traversal are isolated
-  in `platform/fork-target.js`. Both methods are absent upstream at
-  `9a23b357875a72ed9bfd9e652257b0849a6855d7`. References remain read-only.
-- Credited learning can defer up to eight consecutive exact optional labels
-  (章节测验/章节测试/本章自测; also explicit numbered catalog prefixes).
-  Same-chapter or cross-chapter learning is selected from observed ordered nodes.
-  No unknown exam, verification, locked target or assessment submission bypass.
-  Deferred assessments stay unfinished. Private single-use permits are retained;
-  renew/consume revalidate source, target and the deferred-node sequence.
-- Native acknowledgement observes actual target activation AND independently
-  changed owned content. Unique harmless catalog reconstruction is supported;
-  mismatch/unsafe content fails closed. Existing 3000ms default deadline retained.
-  Mutation/load observers plus bounded 100ms polling use the SAME coordinator
-  scheduler. A click returning is not successful acknowledgement.
-- `app.view()` exposes a read-only runtime model. Bottom-right shows phase,
-  action, media kind/ordinal, known/local counts (no fake percent), platform credit,
-  local/restored result, upcoming action, actual deadline, recovery/rest and reason.
-  Top-right retains collapsible settings and report export. Width uses layout
-  viewport (including scrollbar constraint); important runtime rows never scroll.
-  Countdown rows are not live-announced. No render-time random draw/new scheduler.
-- Version-2 diagnostics distinguish observed/validated credit, target/permit,
-  successful queue vs rejection, cooldown, native call/return, active/content
-  observation, acknowledgement, cancellation, failure and timeout. Maximum 100
-  allowlisted events, no IDs/URLs/titles/HTML. Existing storage namespace retained;
-  clean v1 entries migrate as legacy/unrecorded reason, not invented click proof.
-  `atMs` is runtime-relative; persistent `order` preserves cross-reload ordering.
+## Rights and behavior boundary
 
-## Evidence and limits
+No project LICENSE/COPYING/NOTICE or affirmative grant was found in the pinned
+upstream/fork or reviewed source/READMEs. Current upstream API reports license:null.
+GitHub's view/fork facility does not establish separate full-file redistribution
+permission. See CANONICAL_RUNTIME_RESTORE.md for evidence and official guidance.
+This is not a declaration that the existing fork has acquired a license.
 
-`npm test`: 137 PASS / 0 FAIL, all 125 baseline cases retained unchanged.
-`npm run check`: 49 syntax files / 30 production imports.
-`npm ls --omit=dev`: empty. Build and exact artifact verification pass.
-`node scripts/browser-media.mjs`: native generated media/policy/ended and HTML
-geometry; generated runtime ownership/Stop; trusted native tab input; full runtime
-layout/hit-testing at 1280x900 and 320x480; optional-assessment handoff, actual
-countdown decrease and trusted quick Stop pass. Navigation fixtures use synthetic
-pages and mocked media. The geometry-only reader smoke now fixes draw/interval
-parameters to avoid a timing/subpixel flake; reader implementation is unchanged.
-Detailed scenarios and schema: `NAVIGATION_STATUS_REPAIR.md`.
+Startup/discovery/playback/completion/navigation/recovery/UI remain byte-identical
+to the canonical engine. Preserve its original sandbox/matches/run-at/grants:
+unsafeWindow, GM get/set/delete/listener/remove-listener and window.close. No
+XXT permission reinterpretation. Do not install optional live bridge automatically.
+No AI/assessment answering/progress fabrication or additional automation was added.
 
-Old v1 journals cannot establish whether the user's historical click happened.
-The observed authenticated stop has no independently established exact cause.
-Controlled acknowledgement passes at 2600ms; content after the existing deadline
-remains rejected. Real native handlers/loading time and actual page overlap need
-future authenticated evidence; no compatibility or stable-release PASS is claimed.
-Trusted live transport/child binding and proprietary PDF readers remain unsupported.
-No companion/grants changed; no private HTML or reference repository modification.
+## Verification / historical acceptance
 
-## Preservation and delivery boundary
+Run npm run build, npm test, npm run check, npm run verify:artifact and npm ls --omit=dev.
+Build means external verification, not generation. Missing/drifted checkout fails.
+3 essential tests pass: sole-engine policy/inert entry, original syntax/build
+integrity/metadata, and full original installable initialization plus reinjection
+(old instance destroyed, one live V3 instance/original UI, no XXT runtime).
+The DOM/jQuery/clock environment is controlled; engine methods are not patched.
+This is not real Tampermonkey/GM/browser-policy/authenticated-course acceptance.
+The historical 137 XXT cases/Chromium smoke are not acceptance gates for V3. Their
+assets remain for history; the old browser harness now refuses execution.
 
-Fixed 1.0x video/audio engine, source verification, adaptive reader, task scheduler,
-credit evaluator/fork credit, durable partial store, atomic deferral, bounded
-recovery factory, rest/settings, restored-state contract, native-tab identity,
-replay developer module, metadata and MASTER_PLAN remain unchanged. Navigation
-coordinator additions are observation/cancellation plumbing, not a second engine.
-Source lineage and previous acceptance evidence remain in FORK_MIGRATION_AUDIT.
-Push only XXT/main; no PR/Issue/tag/release/deployment/force push. Stop after delivery.
+Before real testing, the user must disable previous XXT installs/console injections
+and reload, using only the canonical original script. No installed manager state
+was changed here. Independent review and real-platform testing remain pending.
+Preserve all Git history; push one correction only to XXT/main. No reference writes,
+PR/Issue/tag/release/force-push/deployment. Stop after this delivery.

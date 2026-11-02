@@ -1,5 +1,31 @@
 # Readiness — DEVELOPMENT / TEST ONLY
 
+## Current decision: external canonical original fork
+
+The owner's post-ae9a792 decision supersedes all rewritten-runtime candidate
+statuses below. Full-file redistribution permission for inherited upstream code
+was not established; the authorized fallback keeps original fork 351c08dc as the
+sole canonical execution distribution. XXT ships no installable/engine now.
+src/entry.js is inert, the prior dist/XXT.user.js is withdrawn, and build verifies
+external canonical bytes without copying, patching or writing the source fork.
+
+Essential checks: 3 PASS / 0 FAIL (policy/disabled entry, exact canonical
+source/artifact/build metadata and syntax, original installed-file bootstrap plus
+reinjection with only one active original V3 instance and its UI on controlled DOM).
+Active tooling syntax/integrity checks and zero production dependencies pass.
+The former 137 tests/Chromium rewrite suite are retired evidence, not counted as
+V3 acceptance. Their old source assets are retained; no old API is forced on V3.
+
+Local canonical installable: D:\xuexitongScript-master\v3_optimized.user.js.
+Disk SHA-256: cb74e06c58f6d68c8c4f75c6a006e6fdf9be5799948ec5669237b4c3ff5cbab0.
+Pinned Git SHA-256: f5c5c5c82148aa566700934c039ad6a870e745e6b383c3739af09dfe2e0d4557.
+Only CRLF checkout conversion differs; exact original builder assembly is verified.
+No canonical file is regenerated or modified here. Permissions/UI remain original;
+no companion installed. Actual Tampermonkey/GM permissions, audio/video behavior,
+platform credit and authenticated compatibility remain unverified this turn.
+Disable the old XXT installation and reload before using only the canonical fork.
+No stable release is claimed. See CANONICAL_RUNTIME_RESTORE.md and HANDOFF.
+
 ## Current full runtime status / navigation continuity correction
 
 Baseline `7c5767b1fc9a724618a114cd2a755b9088012808`; independent acceptance pending.

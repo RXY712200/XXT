@@ -1,3 +1,5 @@
+// Retired rewritten-XXT browser harness. Preserved below as historical evidence.
+throw Error('Retired XXT architecture: run npm test for the pinned canonical V3 bootstrap/integrity smoke instead.');
 // Optional real Chrome smoke check. No autoplay/security flags or authenticated pages.
 import { createServer } from 'node:http';
 import { readFile, mkdir } from 'node:fs/promises';

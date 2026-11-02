@@ -34,6 +34,7 @@ const { objectiveVideoTab, activateObjectiveTab, videoTabIdentity } = __require(
 const { createPartialStore } = __require("src/runtime/partial.js");
 const { createUnattendedRecoveryCoordinator } = __require("src/runtime/fork-recovery.js");
 const singleton = Symbol.for('XXT.browser.runtime.v1');
+const localWait = record => ['WAITING_PLATFORM','RESTORED_WAITING_PLATFORM'].includes(record.state);
 function bootstrap(document, { clock, random = Math.random, storage, ui = true } = {}) {
   const window = document.defaultView;
   if (window[singleton]) return window[singleton];
@@ -56,20 +57,44 @@ function bootstrap(document, { clock, random = Math.random, storage, ui = true }
     return next.documents.some(doc => !previous.documents.includes(doc)) || old.length !== tasks.length || tasks.some((task,i) =>
       task.owner !== old[i]?.owner || task.player !== old[i]?.player || task.mediaSource?.identity !== old[i]?.mediaSource?.identity);
   }
+  function sameLessonCatalog(previous,next) {
+    return previous && next.pageURL===previous.pageURL && next.courseKey===previous.courseKey && next.lesson?.key===previous.lesson?.key &&
+      next.chapters.length===previous.chapters.length && next.chapters.every((item,i)=>item.key===previous.chapters[i].key && item.title===previous.chapters[i].title) &&
+      next.catalog.length===previous.catalog.length && next.catalog.every((item,i)=>{
+        const old=previous.catalog[i];return item.key===old.key && item.title===old.title && item.chapterKey===old.chapterKey &&
+          item.restricted===old.restricted && JSON.stringify(item.ancestry)===JSON.stringify(old.ancestry);
+      });
+  }
+  const inactiveMedia = snapshot => !snapshot.documents.some(doc=>[...doc.querySelectorAll('video,audio')].some(player=>(!player.paused&&!player.ended)||player.seeking));
+  const ownedKnown = task => ['video','audio','document'].includes(task.kind) && task.identity==='verified' && task.key && task.ownerKey &&
+    (task.kind==='document' || task.mediaSource?.usable);
+  function loadingReplacement(previous,next) {
+    return previous?.status==='verified' && previous.tasks.length>0 && previous.tasks.every(ownedKnown) && !previous.assessment && !next.assessment &&
+      sameLessonCatalog(previous,next) && next.status==='loading' && next.hazards.every(code=>code.startsWith('loading-')) && inactiveMedia(next) &&
+      next.tasks.every(task=>previous.tasks.some(old=>task.identity==='verified' && task.key===old.key && task.kind===old.kind && task.ownerKey===old.ownerKey && task.ordinal===old.ordinal));
+  }
+  function equivalentReplacement(previous,next) {
+    return sameLessonCatalog(previous,next) && inspectInventory(next).valid && !next.assessment && inactiveMedia(next) &&
+      previous.tasks.length===next.tasks.length && next.tasks.every((task,i)=>{
+        const old=previous.tasks[i];return ownedKnown(task) && task.key===old.key && task.ownerKey===old.ownerKey && task.kind===old.kind &&
+          task.ordinal===old.ordinal && task.mediaSource?.identity===old.mediaSource?.identity;
+      });
+  }
   const session = acquireSession(document, { clock, adapters: { video: wrap('video', createVideoAdapter), audio: wrap('audio', createAudioAdapter),
     document: wrap('document', options=>createDocumentAdapter({...options,random,interval:settings().actionRanges?.documentScroll?()=>sampleDelay(settings(),random,'documentScroll'):undefined})), live: createLiveAdapter() }, autoContinue: true,
     delayFor: (category,task) => {
       if(prefs.consumeRest())return 0;
-      const next = c.snapshot().records.some(r => r.state === 'WAITING_PLATFORM' || r.localProcessed);
+      const next = c.snapshot().records.some(localWait);
       const action = next ? {video:'nextVideo',audio:'nextAudio',document:'nextDocument',live:'liveEntry'}[task.kind] : {audio:'audioStart',video:'videoStart',live:'liveEntry'}[task.kind];
       return action && (next || settings().actionRanges?.[action]) ? sampleDelay(settings(),random,action) : 0;
     },
     canStart: () => !stopped && recovery?.getStatus().stage !== 'terminal' && settings().automation && !prefs.resting() &&
-      (settings().continuation || !c.snapshot().records.some(r => r.state === 'WAITING_PLATFORM')),
+      (settings().continuation || !c.snapshot().records.some(localWait)),
     onLocalResult(task) { partial.record(task);prefs.record(task.key, task.kind);recovery?.confirmProgress();log.add('outcome','WAITING_PLATFORM',task.kind); },
     onBound(next) {
       log.add('recognition');
       if(c && next.status==='verified')try{c.restorePartial(partial.bind(next,{recheck:explicitRecheck || !next.tasks.length && evaluateCompletion(next).lessonConfirmed}));}catch{halt('未解决附件范围已改变；请明确重扫');return;}
+      if(c?.snapshot().records.some(r=>r.state==='RESTORED_WAITING_PLATFORM'))message='已恢复本地结束记录，等待平台独立确认';
       recovery?.cancel();recovery?.restore();arm();
     },
     onInvalidated(reason) {
@@ -77,17 +102,16 @@ function bootstrap(document, { clock, random = Math.random, storage, ui = true }
       if (!['context-invalidated','context-changed','continuation-context-invalid'].includes(reason)) { halt('执行或导航未确认：已暂停，请明确重扫');return; }
       const previous = c.snapshot().inventory, next = reader.scan(document);
       recovery?.cancel();
-      if (previous?.lesson?.credit.status==='confirmed' && previous.tasks.every(t=>['video','audio','document'].includes(t.kind)) &&
-        next.status==='loading' && next.courseKey===previous.courseKey && next.lesson?.key===previous.lesson.key && next.hazards.every(code=>code.startsWith('loading-'))) {
-        pendingContext={previous,courseKey:previous.courseKey,lessonKey:previous.lesson.key,sameLesson:true,until:now()+10000};arm();return;
+      if (loadingReplacement(previous,next)) {
+        pendingContext={previous,courseKey:previous.courseKey,lessonKey:previous.lesson.key,sameLesson:true,until:now()+10000};
+        if(!recovery.beginReadinessWait()){
+          pendingContext=null;if(recovery.getStatus().stage!=='terminal')halt('加载恢复未获授权，请明确重扫');return;
+        }
+        message='原任务已取消，等待当前小节框架重建（最多10秒）';arm();return;
       }
       // User-developed prior-credit continuation: reread authoritative evidence,
       // stable catalog topology and ordered content identities; never replay ended history.
-      const sameCatalog = previous && next.pageURL===previous.pageURL && next.courseKey === previous.courseKey && next.lesson?.key === previous.lesson?.key &&
-        next.chapters.length===previous.chapters.length && next.chapters.every((item,i)=>item.key===previous.chapters[i].key && item.title===previous.chapters[i].title) &&
-        next.catalog.length === previous.catalog.length && next.catalog.every((item,i) => {
-          const old=previous.catalog[i];return item.key===old.key && item.title===old.title && item.chapterKey===old.chapterKey && JSON.stringify(item.ancestry)===JSON.stringify(old.ancestry);
-        });
+      const sameCatalog = sameLessonCatalog(previous,next);
       const known = task => ['video','audio','document'].includes(task.kind);
       if (sameCatalog && next.status==='verified' && previous.tasks.every(known) && next.tasks.every(known) &&
         next.tasks.length===previous.tasks.length && next.tasks.every((task,i)=>task.key===previous.tasks[i].key && task.kind===previous.tasks[i].kind && task.mediaSource?.identity===previous.tasks[i].mediaSource?.identity) &&
@@ -113,7 +137,8 @@ function bootstrap(document, { clock, random = Math.random, storage, ui = true }
   recovery=createUnattendedRecoveryCoordinator({sessionStorage:recoveryStorage,now,
     setTimeout(fn,delay){const key=`recovery-${++recoverySequence}`;return c.requestRuntime({key,delay,execute:fn})?key:null;},
     clearTimeout:key=>c.cancelRuntime(key),location:{reload(){halt('恢复预算已达终点；不自动刷新');}}}, {
-    identity(){const s=reader.scan(document);return s.status==='verified'&&s.courseKey&&s.lesson?.key?JSON.stringify([s.courseKey,s.lesson.key]):null;},
+    identity(){const s=reader.scan(document);return (s.status==='verified'||pendingContext?.sameLesson&&loadingReplacement(pendingContext.previous,s))&&s.courseKey&&s.lesson?.key?JSON.stringify([s.courseKey,s.lesson.key]):null;},
+    safeLoading(){return !stopped && pendingContext?.sameLesson && loadingReplacement(pendingContext.previous,reader.scan(document));},
     safe(){const s=reader.scan(document);return !stopped&&s.status==='verified'&&!s.assessment&&s.tasks.every(t=>['video','audio','document'].includes(t.kind))&&!(c.snapshot().inventory?.tasks.some(t=>['unknown','assessment'].includes(t.kind)));},
     notice(text){message=text;panel?.render();},fail(text){
       if(recovery?.getStatus().stage==='terminal'){stopped=true;c.stop();message=text;log.add('recovery','PAUSED');panel?.render();}
@@ -125,7 +150,7 @@ function bootstrap(document, { clock, random = Math.random, storage, ui = true }
   });
   const port = createNativeNavigation(document, reader, () => c.snapshot().inventory);
   function halt(reason, persist = true) {
-    stopped = true; c.stop(); message = reason; log.add('stop');
+    stopped = true; pendingContext=null;c.stop(); message = reason; log.add('stop');
     recovery?.markExplicitStop();
     if (persist) try { prefs.stop(); } catch { message = '本地存储失败：已安全停止'; }
     panel?.render();
@@ -152,9 +177,10 @@ function bootstrap(document, { clock, random = Math.random, storage, ui = true }
         pendingContext = null; halt('新小节归属不稳定，请手动重扫'); return;
       }
       if (pendingContext.sameLesson && next.status==='verified') {
-        const previous=pendingContext.previous;pendingContext=null;
-        if (!evaluateCompletion(next).lessonConfirmed || !contentChanged(previous,next)) { halt('完成小节重建证据不足，请明确重扫');return; }
-        c.contextChanged();return;
+        const {previous,until}=pendingContext;
+        if (now()>=until || !equivalentReplacement(previous,next) || !contentChanged(previous,next) ||
+          previous.lesson.credit.status==='confirmed'&&!evaluateCompletion(next).lessonConfirmed) { halt('小节重建身份或完成证据不足，请明确重扫');return; }
+        pendingContext=null;c.bind(next);c.startNext();return;
       }
       if (!pendingContext.sameLesson && next.status === 'verified' && contentChanged(pendingContext.previous,next)) {
         pendingContext = null; c.bind(next); c.startNext(); return;
@@ -174,12 +200,7 @@ function bootstrap(document, { clock, random = Math.random, storage, ui = true }
       if (next.status === 'unsafe' || next.status === 'unsupported') { halt('页面验证或任务归属不明确：需人工处理'); return; }
       const different = next.courseKey && next.lesson?.key && (next.courseKey !== snapshot.courseKey || next.lesson.key !== snapshot.lesson?.key);
       if (different) { c.contextChanged(); return; }
-      if (next.status==='loading' && snapshot.lesson?.credit.status==='confirmed' && snapshot.tasks.every(t=>['video','audio','document'].includes(t.kind)) &&
-        next.courseKey===snapshot.courseKey && next.lesson?.key===snapshot.lesson.key && next.hazards.every(code=>code.startsWith('loading-'))) {
-        // Wait for fresh credit after reconstruction; retained snapshots cannot authorize it.
-        stopped=true;c.contextChanged();stopped=false;
-        pendingContext={previous:snapshot,courseKey:snapshot.courseKey,lessonKey:snapshot.lesson.key,sameLesson:true,until:now()+10000};arm();return;
-      }
+      if (loadingReplacement(snapshot,next)) { c.contextChanged();return; }
       if (next.status === 'verified' && !next.tasks.length && evaluateCompletion(next).lessonConfirmed) { c.contextChanged(); return; }
       if (next.status === 'verified' && snapshot.status === 'loading' && !state.active) {
         loadingSince = now(); c.bind(next); message = '已重新识别当前小节'; c.startNext(); return;
@@ -192,7 +213,7 @@ function bootstrap(document, { clock, random = Math.random, storage, ui = true }
     }
     if (prefs.resting()) message = '周期休息中';
     else {
-      const decision = settings().navigation && !state.active ? c.navigationDecision(fresh.assessment === 'optional' ? 'assessment' : state.records.some(r => r.state === 'WAITING_PLATFORM') ? 'completed' : 'prior-credit') : null;
+      const decision = settings().navigation && !state.active ? c.navigationDecision(fresh.assessment === 'optional' ? 'assessment' : state.records.some(localWait) ? 'completed' : 'prior-credit') : null;
       if (decision?.allowed) {
         const target=fresh.catalog.find(t=>t.key===decision.permit.targetKey),category=decision.permit.mode==='assessment'?'assessment':target?.chapterKey!==fresh.lesson.chapterKey?'nextChapter':'nextLesson';
         c.queueNavigation(decision.permit, port, { delay: prefs.consumeRest()?0:sampleDelay(settings(),random,category), refresh: true }); log.add('navigation'); message = '等待已验证导航';
@@ -200,7 +221,7 @@ function bootstrap(document, { clock, random = Math.random, storage, ui = true }
       const current = c.snapshot();
       message = current.records.some(r => r.kind === 'live' && r.state === 'RUNNING') ? '直播入口需真实手动操作；结果未验证' :
         current.records.some(r => ['FAILED','UNRESOLVED','UNSUPPORTED'].includes(r.state)) ? '失败或不支持：需人工处理' :
-        current.active ? '执行或延迟等待中' : '等待平台信用或人工操作';
+        current.active ? '执行或延迟等待中' : current.records.some(r=>r.state==='RESTORED_WAITING_PLATFORM') ? '已恢复本地结束记录，等待平台独立确认' : '等待平台信用或人工操作';
     }
     const after = c.snapshot(), nextSignature = after.records.map(r => r.state).join('|') + fresh.lesson?.credit.status + after.diagnostic;
     if (nextSignature !== signature) {
@@ -224,7 +245,11 @@ function bootstrap(document, { clock, random = Math.random, storage, ui = true }
     if (stopped) { message = '停止状态已保留，请明确开始或恢复'; panel?.render(); return false; }
     return run();
   }, stop: () => halt('已明确停止；重载不会自动恢复'),
-    deferUnknown(){const inventory=c.snapshot().inventory;if(stopped||!inventory||!inspectInventory(inventory).valid)throw Error('unsafe-defer');c.restorePartial(partial.defer(inventory));c.startNext();panel?.render();},
+    deferUnknown(){
+      const inventory=c.snapshot().inventory;
+      if(stopped||!inventory||!c.deferUnknown(inventory,keys=>partial.defer(inventory,keys)))throw Error('unsafe-or-busy-defer');
+      c.startNext();panel?.render();
+    },
     update(patch) {
       try { prefs.update(patch); } catch (error) { if (prefs.snapshot().error) halt('本地存储失败：已安全停止',false); throw error; }
       log.add('settings');
@@ -237,10 +262,10 @@ function bootstrap(document, { clock, random = Math.random, storage, ui = true }
     exportDiagnostics: () => log.export(), clearDiagnostics() { log.clear(); },
     view() {
       const state = c.snapshot(), task = state.inventory?.tasks.find(t => state.records.some(r => r.key === t.key && ['READY','STARTING','RUNNING','UNRESOLVED','UNSUPPORTED'].includes(r.state))) ||
-        state.inventory?.tasks.findLast(t => state.records.some(r => r.key === t.key && r.state === 'WAITING_PLATFORM'));
+        state.inventory?.tasks.findLast(t => state.records.some(r => r.key === t.key && localWait(r)));
       return Object.freeze({ settings: settings(), message, task: task ? { kind: task.recognition?.kind || task.kind, ordinal: task.ordinal, recognitionOnly: Boolean(task.recognition) } : null, total: state.records.length,
         taskState: state.records.find(r => r.key === task?.key)?.state,
-        localDone: Boolean(state.inventory && inspectInventory(state.inventory).valid && state.records.some(r => r.key === task?.key && r.state === 'WAITING_PLATFORM')), platformConfirmed: state.inventory ? evaluateCompletion(state.inventory).lessonConfirmed : false,
+        localDone: Boolean(state.inventory && inspectInventory(state.inventory).valid && state.records.some(r => r.key === task?.key && localWait(r))), platformConfirmed: state.inventory ? evaluateCompletion(state.inventory).lessonConfirmed : false,
         delayed: c.actions().some(a => a.status === 'pending' && (a.key.includes(':start:') || a.key.endsWith(':navigate'))), restRemaining: Math.max(0,prefs.snapshot().restUntil-now()) });
     },
     dispose() { if (disposed) return; disposed = true; recovery?.dispose();document.removeEventListener('click',manualTab,true); session.dispose(); panel?.destroy(); if (window[singleton] === app) delete window[singleton]; if (window.XXT === app) delete window.XXT; }
@@ -517,11 +542,11 @@ function evidence(subject, scope, status, reason) {
 
 const State = Object.freeze(Object.fromEntries([
   'DISCOVERED', 'PENDING', 'READY', 'STARTING', 'RUNNING', 'LOCAL_COMPLETED',
-  'WAITING_PLATFORM', 'FAILED', 'UNRESOLVED', 'UNSUPPORTED', 'PAUSED', 'CANCELLED'
+  'WAITING_PLATFORM', 'RESTORED_WAITING_PLATFORM', 'FAILED', 'UNRESOLVED', 'UNSUPPORTED', 'PAUSED', 'CANCELLED'
 ].map(name => [name, name])));
 
 const transitions = {
-  DISCOVERED: ['PENDING'], PENDING: ['READY', 'UNSUPPORTED'], READY: ['STARTING'],
+  DISCOVERED: ['PENDING'], PENDING: ['READY', 'UNSUPPORTED', 'RESTORED_WAITING_PLATFORM'], READY: ['STARTING'],
   STARTING: ['RUNNING', 'FAILED'], RUNNING: ['LOCAL_COMPLETED', 'FAILED'],
   LOCAL_COMPLETED: ['WAITING_PLATFORM'], FAILED: ['UNRESOLVED'], PAUSED: ['PENDING']
 };
@@ -695,7 +720,7 @@ function createCoordinator({ clock, adapters = {}, delayFor = () => 0, continueK
         if (candidate.state === State.PENDING) transition(candidate, State.UNSUPPORTED);
         diagnostic = candidate.task.recognition?.reason || 'unsupported-task-boundary'; return false;
       }
-      if (evaluation.taskConfirmed.includes(candidate.key) || candidate.state === State.WAITING_PLATFORM || candidate.localProcessed) continue;
+      if (evaluation.taskConfirmed.includes(candidate.key) || [State.WAITING_PLATFORM, State.RESTORED_WAITING_PLATFORM].includes(candidate.state)) continue;
       if (candidate.state === State.UNRESOLVED && continueKnownAfterFailure) continue;
       if (candidate.state !== State.PENDING) { diagnostic = 'unresolved-task'; return false; }
       record = candidate; break;
@@ -815,9 +840,21 @@ function createCoordinator({ clock, adapters = {}, delayFor = () => 0, continueK
     restorePartial(saved) {
       if (!valid() || active || navigation) return false;
       for (const record of records) {
-        if (saved.ended?.includes(record.key) && ['video','audio','document'].includes(record.kind)) record.localProcessed = true;
+        if (record.state === State.PENDING && saved.ended?.includes(record.key) && ['video','audio','document'].includes(record.kind)) transition(record, State.RESTORED_WAITING_PLATFORM);
         if (saved.deferred?.includes(record.key) && record.kind === 'unknown') deferred.add(record.key);
       }
+      return true;
+    },
+    deferUnknown(expectedInventory, persist) {
+      // Synchronous decision: reject busy/stale work before any durable mutation.
+      // A queued navigation is busy even before its effect port is activated.
+      if (inventory !== expectedInventory || !valid() || active || navigation ||
+        scheduler.snapshot().some(a => a.key.endsWith(':navigate') && a.status === 'pending')) return false;
+      const keys = Object.freeze(records.filter(r => r.kind === 'unknown').map(r => r.key));
+      if (!keys.length) return false;
+      persist(keys); // Native synchronous storage either succeeds or grants nothing.
+      for (const key of keys) deferred.add(key);
+      diagnostic = 'unknown-explicitly-deferred';
       return true;
     },
     requestRuntime({key,delay,execute}) {
@@ -1449,7 +1486,7 @@ function mountPanel(document, app) {
     for(const {category,enabled,min,max}of actionFields){const r=view.settings.actionRanges?.[category];enabled.checked=r?.enabled??true;if(root.activeElement!==min)min.value=r?.minMs??view.settings.minMs;if(root.activeElement!==max)max.value=r?.maxMs??view.settings.maxMs;}
     for(const [key,input]of fields)if(input.type==='checkbox')input.checked=view.settings[key];else if(root.activeElement!==input)input.value=view.settings[key]??'';
     text(quick.querySelector('[role=status]'),view.message);
-    const states={READY:'等待启动',STARTING:'启动中',RUNNING:task?.kind==='live'?'人工等待':'运行中',WAITING_PLATFORM:'等待平台信用',UNRESOLVED:'未解决',UNSUPPORTED:'不支持',PAUSED:'暂停',CANCELLED:'已取消'};
+    const states={READY:'等待启动',STARTING:'启动中',RUNNING:task?.kind==='live'?'人工等待':'运行中',WAITING_PLATFORM:'等待平台信用',RESTORED_WAITING_PLATFORM:'已恢复本地结束记录，等待平台确认',UNRESOLVED:'未解决',UNSUPPORTED:'不支持',PAUSED:'暂停',CANCELLED:'已取消'};
     text(root.querySelector('#status'),`状态：${view.message} ${states[view.taskState]||''}\n任务：${names[task?.kind]||'等待识别'} ${task?`${task.ordinal+1}/${view.total}`:''}\n本地结果：${view.localDone?'已处理，非平台完成':'尚未处理'}\n平台信用：${view.platformConfirmed?'已确认':'未确认'}\n延迟：${view.delayed?'等待中':'无'}\n未知、专有阅读器及未验证直播需人工处理。`);
     text(root.querySelector('#rest-status'),`休息剩余：${Math.max(0,Math.ceil(view.restRemaining/1000))}秒`);
     if(!report.hidden)report.value=app.exportDiagnostics();
@@ -1501,7 +1538,7 @@ Object.assign(__exports, {currentStepTitle,videoTabIdentity,isActiveVideoTab,obj
 function createPartialStore(storage) {
   const key='xxt.partial-session.v1';let state=null;
   function scope(inventory){return JSON.stringify([inventory.courseKey,inventory.lesson?.key,inventory.tasks.map(t=>[t.key,t.kind,t.ownerKey,t.mediaSource?.identity||null])]);}
-  function save(){if(state.ended.length+state.deferred.length>2048)throw Error('partial-capacity');storage.setItem(key,JSON.stringify(state));}
+  function save(next=state){if(next.ended.length+next.deferred.length>2048)throw Error('partial-capacity');storage.setItem(key,JSON.stringify(next));state=next;}
   function bind(inventory,{recheck=false}={}){
     const current=scope(inventory);const raw=storage.getItem(key);state=raw?JSON.parse(raw):null;
     if(state && (state.version!==1||typeof state.scope!=='string'||!Array.isArray(state.ended)||!Array.isArray(state.deferred)||state.ended.length+state.deferred.length>2048||[...state.ended,...state.deferred].some(x=>typeof x!=='string')||new Set(state.ended).size!==state.ended.length||new Set(state.deferred).size!==state.deferred.length))throw Error('invalid-partial-state');
@@ -1515,8 +1552,14 @@ function createPartialStore(storage) {
     }
     return {ended:[...state.ended],deferred:[...state.deferred]};
   }
-  return Object.freeze({bind,record(task){if(!state)return;if(!state.ended.includes(task.key)){state.ended.push(task.key);save();}},
-    defer(inventory){if(!state||state.scope!==scope(inventory))throw Error('partial-scope-changed');for(const task of inventory.tasks)if(task.kind==='unknown'&&!state.deferred.includes(task.key))state.deferred.push(task.key);save();return {ended:[...state.ended],deferred:[...state.deferred]};}});
+  return Object.freeze({bind,record(task){if(!state)return;if(!state.ended.includes(task.key))save({...state,ended:[...state.ended,task.key]});},
+    defer(inventory,keys=inventory.tasks.filter(t=>t.kind==='unknown').map(t=>t.key)){
+      const unknown=inventory.tasks.filter(t=>t.kind==='unknown').map(t=>t.key);
+      if(!state||state.scope!==scope(inventory)||JSON.stringify(keys)!==JSON.stringify(unknown))throw Error('partial-scope-changed');
+      const next={...state,deferred:[...new Set([...state.deferred,...keys])]};
+      save(next); // No in-memory change before the durable write succeeds.
+      return {ended:[...next.ended],deferred:[...next.deferred]};
+    }});
 }
 
 Object.assign(__exports, {createPartialStore});
@@ -1574,6 +1617,16 @@ function createUnattendedRecoveryCoordinator(env, hooks) {
         timer = env.setTimeout(() => { timer = null; if (identity() !== state.identity) return cancel(); if (!hooks.progress()) requestRecovery('readiness'); }, 15000);
     };
     return { restore, requestRecovery, classifyFailure: reason => ['context-stale','frame-replaced','readiness'].includes(reason) && hooks.safe(),
+        beginReadinessWait() {
+            if (disposed || state.stopped || state.stage === 'terminal' || !identity() || identity() !== state.identity || !hooks.safeLoading?.()) return false;
+            cancel();
+            // Waiting is an attempt too. Preserve the existing third-attempt stop
+            // when an automatic reload is not authorized; the runtime owns the deadline.
+            state.attempts++;
+            if (state.attempts >= 3) { finish('当前小节恢复预算已终止，请手动重新检测'); return false; }
+            state.stage = 'observing'; state.reason = 'readiness';
+            return persist();
+        },
         cancel, dispose() { disposed = true; cancel(); }, getStatus: () => ({ ...state }),
         confirmProgress() { if (!disposed && !state.stopped && state.stage !== 'terminal' && state.attempts && identity() && identity() === state.identity) { cancel(); state = fresh(identity()); persist(); } },
         markExplicitStop() { cancel(); state.stopped = true; persist(); },

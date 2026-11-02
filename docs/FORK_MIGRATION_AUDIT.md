@@ -1,5 +1,45 @@
 # Fork migration audit — integrated follow-up / PARTIAL platform acceptance
 
+## Current state-consistency repair (supersedes affected boundaries below)
+
+Reviewed candidate `0a93c2b7e12c051c1e5920a76b2227843862b3a4`.
+The migration is not restarted. Three integration defects are corrected:
+
+- **Loading recovery:** the old credited-only condition rejected unfinished
+  same-lesson iframe reconstruction. Runtime now validates the old owned scope
+  plus current course/lesson/catalog, cancels old work and reserves a persisted
+  readiness attempt through `beginReadinessWait()`. Existing scheduler polls for
+  at most 10s. Attempt 3 retains terminal/no-reload behavior. Fresh content must
+  independently match attachment keys, owner identity, ordinal, kind and usable
+  media source; it must be inactive and free of unsafe/verification tasks. Prior
+  credit is still required to continue a previously credited item. No old media
+  object or local result is reused as a completion proof.
+- **Atomic deferral:** `coordinator.deferUnknown()` checks idle, valid exact
+  inventory and queued/active navigation before a synchronous persistence callback.
+  The callback validates/persists that same exact unknown-key decision; only then
+  does the coordinator grant deferral. `partial.defer()` uses immutable next state
+  and publishes its private copy only after successful native storage write.
+  Unknown tasks remain unresolved and cannot authorize lesson departure.
+- **Restored local state:** `RESTORED_WAITING_PLATFORM` distinguishes persisted
+  local-ended evidence from fresh PENDING and current-generation WAITING_PLATFORM.
+  No invented execution history. Runtime's completed-mode gate requires fresh own
+  task credit for restored records; the navigation gate/evaluator are unchanged.
+  Chinese status/local-result display remains separate from whole-lesson credit.
+
+New `tests/state-consistency.test.js` contains 12 actual-API/application tests;
+all 104 earlier scenarios remain. The earlier immediate-Stop loading assertion
+was extended to finite wait then Stop, retaining no replay and deadline failure.
+The generated-runtime credited-video/correct native acknowledgement regression
+still passes. Native Chromium adds real iframe/storage/UI integration with mocked
+playback; it does not prove platform or autoplay compatibility. 116 tests pass.
+
+The existing recovery factory body is retained except the narrowly added readiness
+reservation operation; this is no longer an entirely byte-identical extraction.
+Playback engines, source verification, completion/navigation architecture, adaptive
+reader, scheduler, developer replay module and five-phase plan are unchanged.
+No new source reuse, private fixture import, reference edits, grants or companion.
+Remaining trusted-live/proprietary-reader dependencies below are unchanged.
+
 ## Current delivery (supersedes the historical limited-delivery section below)
 
 XXT baseline `36aa62cfaae9cca2d5c9caafcea34e0a796b27be`, authorized target main.

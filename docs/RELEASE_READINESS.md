@@ -1,5 +1,30 @@
 # Readiness — DEVELOPMENT / TEST ONLY
 
+## Current state-consistency repair
+
+Baseline `0a93c2b7e12c051c1e5920a76b2227843862b3a4`. Current automated result:
+**116 passed / 0 failed**, retaining all 104 existing scenarios. One old loading
+test now requires bounded waiting, followed by Stop and no replay, instead of
+immediate Stop: this is the explicit revised loading contract, not removed safety.
+12 new tests call actual runtime/coordinator/storage/UI paths; grouped negative
+cases include changed source/content, deadline, verification, Stop, stale callbacks,
+third-attempt terminal/reinjection, busy deferral/navigation, storage failure,
+corrected-task recheck, and restored progress versus independent platform credit.
+
+`npm test`, `npm run check` (45 syntax files / 28 production imports),
+`npm ls --omit=dev` (empty), `npm run build`, `npm run verify:artifact`, and
+`node scripts/browser-media.mjs` are the delivery gates. Artifact:
+`0fcad86bc629270e6509b317d02036c1389669ab3066b703f1c030ca1c5bc42a`.
+
+Native Chromium adds real iframe removal/reconstruction, same-owned content
+acknowledgement and localStorage restored-wait Chinese UI, with mocked media.
+Existing real generated-media/policy/ended, native trusted tab input and layout
+checks remain separate evidence. None is authenticated Chaoxing acceptance.
+Trusted replay transport, real child binding and proprietary viewers remain
+unsupported implementation/evidence dependencies. No companion or release.
+
+Older sections below are historical and do not describe this artifact.
+
 Current integrated follow-up starts at 36aa62cfaae9cca2d5c9caafcea34e0a796b27be.
 104/104 tests pass (all previous 92 unchanged). `npm run check` validates source,
 test/script syntax, side-effect-free imports and exact artifact; no runtime deps.

@@ -145,6 +145,27 @@ try {
   await evaluate(`(${prepareTabs})(true)`);await evaluate(userscript);await evaluate('new Promise(r=>setTimeout(r,100))');await nativeTabClick();await evaluate('new Promise(r=>setTimeout(r,1100))');
   assert.equal((await evaluate('window.__tabs')).next,0);
   console.log('PASS native Chromium trusted mouse tab transition, active title/text re-click and Stop cancellation; media playback mocked on synthetic page, no authenticated evidence.');
+  // New independent fixture: actual browser iframe reconstruction and durable
+  // storage/UI integration. Media play/ended are controlled, not policy evidence.
+  await evaluate(`(${prepareTabs})()`);
+  await evaluate(`sessionStorage.removeItem('xxt.unattended-recovery.v1');localStorage.removeItem('xxt.partial-session.v1');`);
+  await evaluate(userscript);await evaluate('new Promise(r=>setTimeout(r,100))');
+  await evaluate(`(()=>{const card=document.querySelector('iframe[info=card]');window.__rebuild={html:card.contentDocument.body.innerHTML,body:card.contentDocument.querySelector('iframe').contentDocument.body.innerHTML,old:card.contentDocument.querySelector('iframe').contentDocument.querySelector('video')};card.remove();})()`);
+  async function until(expression) {
+    const deadline=Date.now()+4000;
+    while(Date.now()<deadline){if(await evaluate(expression))return;await new Promise(resolve=>setTimeout(resolve,50));}
+    assert.fail('Native state acknowledgement timed out: '+expression);
+  }
+  await until(`/框架重建/.test(window.XXT.view().message)`);
+  await evaluate(`(()=>{const card=document.createElement('iframe');card.setAttribute('info','card');document.body.append(card);card.contentDocument.body.innerHTML=window.__rebuild.html;const inner=card.contentDocument.querySelector('iframe');inner.contentDocument.body.innerHTML=window.__rebuild.body;const m=inner.contentDocument.querySelector('video');let paused=true;Object.defineProperties(m,{paused:{get:()=>paused},readyState:{get:()=>4}});m.play=()=>{window.__tabs.rebuilt=(window.__tabs.rebuilt||0)+1;paused=false;return Promise.resolve();};m.pause=()=>{paused=true;};window.__rebuild.current=m;})()`);
+  await until(`window.__tabs.rebuilt===1&&window.XXT.view().taskState==='RUNNING'`);
+  await evaluate(`window.__rebuild.old.dispatchEvent(new Event('ended'));Object.defineProperty(window.__rebuild.current,'ended',{value:true});window.__rebuild.current.dispatchEvent(new Event('ended'));`);
+  assert.equal((await evaluate('window.__tabs')).old,1);
+  await until(`window.XXT.view().taskState==='WAITING_PLATFORM'`);
+  await evaluate('window.XXT.dispose()');await evaluate(userscript);
+  const restored=await evaluate(`({state:window.XXT.view().taskState,local:window.XXT.view().localDone,credit:window.XXT.view().platformConfirmed,plays:window.__tabs.rebuilt,text:document.querySelector('#xxt-control').shadowRoot.querySelector('#status').textContent})`);
+  assert.equal(restored.state,'RESTORED_WAITING_PLATFORM');assert.equal(restored.local,true);assert.equal(restored.credit,false);assert.equal(restored.plays,1);assert.match(restored.text,/已恢复本地结束记录/);
+  console.log('PASS native Chromium missing-frame recovery and persisted local-wait UI; real DOM/storage, mocked media, no authenticated evidence.');
   await send('Browser.close');
 } finally {
   socket?.close(); child.kill(); await new Promise(resolve => server.close(resolve));

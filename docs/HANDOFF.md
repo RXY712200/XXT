@@ -1,5 +1,44 @@
 # XXT handoff — Phase V candidate
 
+## Current state-consistency correction
+
+Reviewed starting SHA `0a93c2b7e12c051c1e5920a76b2227843862b3a4`; final SHA is the
+commit containing this section. Verify HEAD against origin/main. This section
+supersedes the historical delivery counts/hashes below. No new phase.
+
+Three fixes: (1) unfinished, independently owned same-lesson loading can wait up
+to 10s after old work is cancelled. Waits consume the existing persisted budget;
+attempt 3 is terminal without reload. Ready replacements need fresh ownership,
+exact content/source/ordinal identity and stable page/catalog context. Changed
+source, verification, competing media, Stop or timeout never adopts a player.
+Previously credited content still needs fresh authoritative credit. (2) The
+coordinator rejects busy/stale deferral before persistence, then persists and
+applies its exact synchronous key decision. Storage failure changes neither
+private partial state nor coordinator authority. (3) durable local-ended records
+use RESTORED_WAITING_PLATFORM, not PENDING or invented RUNNING/ended history.
+The UI says restored local processing, not platform credit. Runtime navigation
+uses the stricter completed gate; restored records cannot replace genuine-ended
+evidence, so independent task credit is required for those records.
+
+Canonical source: `D:\XXT\src\` (entry `src/entry.js`); generated installable:
+`D:\XXT\dist\XXT.user.js`, SHA-256
+`0fcad86bc629270e6509b317d02036c1389669ab3066b703f1c030ca1c5bc42a`.
+Validation: 116 PASS / 0 FAIL (104 existing scenarios + 12 focused regressions),
+syntax 45 files, 28 production imports, zero production dependencies; exact
+build/verification. Existing DOM-replacement test retains no-replay/Stop checks,
+but now expects the authorized finite wait before Stop rather than immediate Stop.
+Native Chrome includes real iframe reconstruction and restored localStorage/UI
+integration with mocked playback; existing real generated-media policy/end,
+native trusted mouse and two-area layout checks are retained. No authenticated
+platform session or permission bypass. See RELEASE_READINESS for evidence limits.
+
+Frozen engines, source verification, scheduler, navigation permit/effect port,
+completion evaluator, adaptive reader, replay developer module, metadata and
+MASTER_PLAN remain unchanged. Two-area hosts/styles unchanged; only new state text.
+No optional live bridge or grants changed; trusted live transport/child binding and
+proprietary readers remain blocked as documented. No stable release or authenticated
+acceptance. Push only XXT/main, then stop for independent review.
+
 ## Current integrated migration follow-up
 
 Starting SHA `36aa62cfaae9cca2d5c9caafcea34e0a796b27be`; final SHA is the commit

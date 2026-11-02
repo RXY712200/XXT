@@ -83,7 +83,7 @@ export function createCoordinator({ clock, adapters = {}, delayFor = () => 0, co
         if (candidate.state === State.PENDING) transition(candidate, State.UNSUPPORTED);
         diagnostic = candidate.task.recognition?.reason || 'unsupported-task-boundary'; return false;
       }
-      if (evaluation.taskConfirmed.includes(candidate.key) || candidate.state === State.WAITING_PLATFORM || candidate.localProcessed) continue;
+      if (evaluation.taskConfirmed.includes(candidate.key) || [State.WAITING_PLATFORM, State.RESTORED_WAITING_PLATFORM].includes(candidate.state)) continue;
       if (candidate.state === State.UNRESOLVED && continueKnownAfterFailure) continue;
       if (candidate.state !== State.PENDING) { diagnostic = 'unresolved-task'; return false; }
       record = candidate; break;
@@ -203,9 +203,21 @@ export function createCoordinator({ clock, adapters = {}, delayFor = () => 0, co
     restorePartial(saved) {
       if (!valid() || active || navigation) return false;
       for (const record of records) {
-        if (saved.ended?.includes(record.key) && ['video','audio','document'].includes(record.kind)) record.localProcessed = true;
+        if (record.state === State.PENDING && saved.ended?.includes(record.key) && ['video','audio','document'].includes(record.kind)) transition(record, State.RESTORED_WAITING_PLATFORM);
         if (saved.deferred?.includes(record.key) && record.kind === 'unknown') deferred.add(record.key);
       }
+      return true;
+    },
+    deferUnknown(expectedInventory, persist) {
+      // Synchronous decision: reject busy/stale work before any durable mutation.
+      // A queued navigation is busy even before its effect port is activated.
+      if (inventory !== expectedInventory || !valid() || active || navigation ||
+        scheduler.snapshot().some(a => a.key.endsWith(':navigate') && a.status === 'pending')) return false;
+      const keys = Object.freeze(records.filter(r => r.kind === 'unknown').map(r => r.key));
+      if (!keys.length) return false;
+      persist(keys); // Native synchronous storage either succeeds or grants nothing.
+      for (const key of keys) deferred.add(key);
+      diagnostic = 'unknown-explicitly-deferred';
       return true;
     },
     requestRuntime({key,delay,execute}) {

@@ -50,6 +50,16 @@ export function createUnattendedRecoveryCoordinator(env, hooks) {
         timer = env.setTimeout(() => { timer = null; if (identity() !== state.identity) return cancel(); if (!hooks.progress()) requestRecovery('readiness'); }, 15000);
     };
     return { restore, requestRecovery, classifyFailure: reason => ['context-stale','frame-replaced','readiness'].includes(reason) && hooks.safe(),
+        beginReadinessWait() {
+            if (disposed || state.stopped || state.stage === 'terminal' || !identity() || identity() !== state.identity || !hooks.safeLoading?.()) return false;
+            cancel();
+            // Waiting is an attempt too. Preserve the existing third-attempt stop
+            // when an automatic reload is not authorized; the runtime owns the deadline.
+            state.attempts++;
+            if (state.attempts >= 3) { finish('当前小节恢复预算已终止，请手动重新检测'); return false; }
+            state.stage = 'observing'; state.reason = 'readiness';
+            return persist();
+        },
         cancel, dispose() { disposed = true; cancel(); }, getStatus: () => ({ ...state }),
         confirmProgress() { if (!disposed && !state.stopped && state.stage !== 'terminal' && state.attempts && identity() && identity() === state.identity) { cancel(); state = fresh(identity()); persist(); } },
         markExplicitStop() { cancel(); state.stopped = true; persist(); },

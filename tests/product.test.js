@@ -86,7 +86,10 @@ test('one transition delay is drawn once and no missing platform credit can navi
 
 test('same-lesson DOM replacement pauses rather than replaying old local evidence', async () => {
   const f=product(); await f.tick(); f.owners[0].replaceWith(f.owners[0].cloneNode()); await f.tick(1000);
-  assert.equal(f.controls[0].calls,1); assert.equal(JSON.parse(f.storage.getItem()).stopped,true); f.close();
+  // A verifiably same-lesson loading replacement now gets the authorized finite
+  // wait, rather than immediate Stop. Missing content still never replays.
+  assert.equal(f.controls[0].calls,1); assert.equal(JSON.parse(f.storage.getItem()).stopped,false);
+  await f.tick(10000);assert.equal(f.controls[0].calls,1);assert.equal(JSON.parse(f.storage.getItem()).stopped,true);f.close();
 });
 
 test('native navigation renews a branded permit after long delay and requires actual target content change', async () => {

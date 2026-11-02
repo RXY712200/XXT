@@ -37,7 +37,7 @@ export function mountPanel(document, app) {
     for(const {category,enabled,min,max}of actionFields){const r=view.settings.actionRanges?.[category];enabled.checked=r?.enabled??true;if(root.activeElement!==min)min.value=r?.minMs??view.settings.minMs;if(root.activeElement!==max)max.value=r?.maxMs??view.settings.maxMs;}
     for(const [key,input]of fields)if(input.type==='checkbox')input.checked=view.settings[key];else if(root.activeElement!==input)input.value=view.settings[key]??'';
     text(quick.querySelector('[role=status]'),view.message);
-    const states={READY:'等待启动',STARTING:'启动中',RUNNING:task?.kind==='live'?'人工等待':'运行中',WAITING_PLATFORM:'等待平台信用',UNRESOLVED:'未解决',UNSUPPORTED:'不支持',PAUSED:'暂停',CANCELLED:'已取消'};
+    const states={READY:'等待启动',STARTING:'启动中',RUNNING:task?.kind==='live'?'人工等待':'运行中',WAITING_PLATFORM:'等待平台信用',RESTORED_WAITING_PLATFORM:'已恢复本地结束记录，等待平台确认',UNRESOLVED:'未解决',UNSUPPORTED:'不支持',PAUSED:'暂停',CANCELLED:'已取消'};
     text(root.querySelector('#status'),`状态：${view.message} ${states[view.taskState]||''}\n任务：${names[task?.kind]||'等待识别'} ${task?`${task.ordinal+1}/${view.total}`:''}\n本地结果：${view.localDone?'已处理，非平台完成':'尚未处理'}\n平台信用：${view.platformConfirmed?'已确认':'未确认'}\n延迟：${view.delayed?'等待中':'无'}\n未知、专有阅读器及未验证直播需人工处理。`);
     text(root.querySelector('#rest-status'),`休息剩余：${Math.max(0,Math.ceil(view.restRemaining/1000))}秒`);
     if(!report.hidden)report.value=app.exportDiagnostics();

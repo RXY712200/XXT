@@ -27,6 +27,12 @@
   Do not blindly import an inherited whole method or treat authorship alone as
   proof of ownership. Record direct/adapted reuse and retained equivalents.
 - No reference Git history import, private fixtures or unrelated repository edits.
+- Integrated remaining migration authorization starts at 36aa62cfaae9cca2d5c9caafcea34e0a796b27be.
+  Finish the requested subsystems in one correction; no new phase. Durable partial
+  results and journals are never credit. The extracted recovery uses the existing
+  scheduler; terminal exhaustion cannot be cleared by late callbacks. Developer
+  replay lifecycle infrastructure has no installed privileged transport: never
+  silently connect page messages, expand grants, refresh or close a tab.
 
 ## Protected product decisions
 

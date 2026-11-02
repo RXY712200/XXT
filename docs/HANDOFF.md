@@ -1,5 +1,44 @@
 # XXT handoff — Phase V candidate
 
+## Current integrated migration follow-up
+
+Starting SHA `36aa62cfaae9cca2d5c9caafcea34e0a796b27be`; final SHA is the commit
+containing this section (verify HEAD and origin/main rather than a self-reference).
+Previous delivery paragraphs below are historical. Current result: **104 PASS /
+0 FAIL**, retaining all 92 baseline tests unchanged. Canonical artifact:
+`D:\XXT\dist\XXT.user.js`, SHA-256
+`24312dcdec8bf9ce8dab9e01ec4f7664d5ec97cfcc11b0afd0b8aec46ae10b48`.
+Production sources remain `D:\XXT\src\`; entry `src/entry.js`.
+
+See the CURRENT section in FORK_MIGRATION_AUDIT.md for each direct/adapted reuse,
+retained equivalent and distinct implementation/evidence dependency. Recovery
+factory extracted from user-added source, no inherited playback engine copied.
+All reference checkouts remain read-only. MASTER_PLAN stays byte-unchanged.
+
+New integration: reverified credited-video iframe/catalog reconstruction; bounded
+10s wait; exact-scope local progress and explicit unknown deferral/recheck; durable
+three-attempt recovery (attempt 3 stops, never reloads); 5–7s adaptive HTML reader;
+ten independent range overrides; durable sanitized decision journal; rest consumes
+one transition delay without stacking. Genuine trusted tab acknowledgement is an
+explicit recheck; unknown/processed-scope changes otherwise remain conservative.
+Navigation failure/timeout never enters media recovery. Fresh navigation ON,
+saved false/Stop retained. Two-area hosts/layout and one scheduler preserved.
+
+Replay claim/ack/liveness/terminal/expiry/retry machinery is implemented and tested
+as an unbundled developer API. **No privileged transport or optional companion is
+installed.** Grant-none core has no trusted cross-window sender; connecting GM,
+real child/player binding, self-close/refresh/credit handoff needs explicit reviewed
+capabilities. Automatic return stays disabled; proprietary PDF/knowledge-map
+executors remain unsupported. These are implementation dependencies, not merely
+untested features. No authenticated Chaoxing or stable-release acceptance.
+
+Verification commands: `npm test`, `npm run check`, `npm ls --omit=dev`,
+`npm run build`, `npm run verify:artifact`, `node scripts/browser-media.mjs`.
+Tests call actual XXT modules and generated runtime. Native smoke uses generated
+media and intercepted synthetic pages, never an authenticated session. Audio dual
+policy denial is a valid unresolved result; no permission flags were added.
+Stop after this integrated correction; no additional phase/release authorized.
+
 Accepted Phase IV baseline: `3fc8021a7b51d0770fbf7931a0d2aa548213e3e1`.
 Current SHA: git rev-parse HEAD; compare git ls-remote origin refs/heads/main.
 Root D:\XXT; repository RXY712200/XXT; branch main.
@@ -16,7 +55,8 @@ Build/verification/PowerShell hash agree; no production dependencies.
 
 See PHASE_V.md and RELEASE_READINESS.md for contracts, evidence and blockers.
 Chinese UI, validated settings, persistent Stop/rest, sanitized diagnostics and
-isolated native navigation port are integrated. Navigation defaults OFF.
+isolated native navigation port are integrated. Fresh navigation defaults ON;
+saved explicit false remains false and persistent Stop still wins.
 All 64 previous tests retained; 13 new product cases. No runtime dependencies.
 Chrome smoke uses intercepted synthetic pages, not authenticated platform data.
 PDF plugins/proprietary readers, five disabled descriptors and automatic live

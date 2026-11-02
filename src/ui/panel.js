@@ -1,5 +1,6 @@
 const labels = { automation: '主自动化', video: '视频', audio: '音频', document: '文档', continuation: '安全续接', navigation: '允许小节/章节导航', background: '后台恢复', delays: '随机延迟', restEnabled: '周期休息' };
 const names = { video: '视频', audio: '音频', document: '文档', live: '直播（手动）', assessment: '测验（不作答）', unknown: '未知', 'book-knowledge-map': '书籍/知识图谱（仅识别）', 'timed-reader': '计时阅读（仅识别）', 'audio-slides': '音频幻灯（仅识别）', hyperlink: '链接任务（仅识别）', 'legacy-multimedia': '旧式动画（不支持执行）' };
+import { actionCategories } from '../runtime/preferences.js';
 export function mountPanel(document, app) {
   const host = document.createElement('aside'), notice = document.createElement('aside');
   host.id = 'xxt-control'; notice.id = 'xxt-notice';
@@ -14,6 +15,7 @@ export function mountPanel(document, app) {
   button(quick.querySelector('span'),'停止自动操作',app.stop);
   button(quick.querySelector('span'),'重新自动检测',app.start);
   for(const [text,fn] of [['开始',app.start],['停止',app.stop],['恢复',app.resume],['重扫当前小节',app.rescan]])button(root.querySelector('#actions'),text,fn);
+  if(app.deferUnknown)button(root.querySelector('#actions'),'保留未知附件并继续已知任务',app.deferUnknown);
   button(root.querySelector('#defaults'),'恢复默认',app.restore);
   const report=root.querySelector('textarea');
   button(root.querySelector('#reports'),'查看脱敏诊断',()=>{report.hidden=false;report.value=app.exportDiagnostics();});
@@ -25,8 +27,14 @@ export function mountPanel(document, app) {
     listen(input,'change',()=>act(()=>app.update({[key]:input.type==='checkbox'?input.checked:input.value===''?null:Number(input.value)})));
     label.append(input);root.querySelector(['delays','minMs','maxMs'].includes(key)?'#delays':['restEnabled','restCount','restMs'].includes(key)?'#rest':'#features').append(label);fields.set(key,input);
   }
+  const actionFields=[];const actionNames={videoStart:'视频启动',audioStart:'音频启动',nextVideo:'下一视频',nextAudio:'下一音频',documentScroll:'文档采样间隔',nextDocument:'下一文档',nextLesson:'下一小节',nextChapter:'下一章节',assessment:'测验交接',liveEntry:'直播登记等待'};
+  const group=document.createElement('details');group.innerHTML='<summary>分类延迟（未配置时继承总范围）</summary>';root.querySelector('#delays').append(group);
+  for(const category of actionCategories){const row=document.createElement('label');row.textContent=actionNames[category];const enabled=document.createElement('input'),min=document.createElement('input'),max=document.createElement('input');enabled.type='checkbox';min.type=max.type='number';min.style.width=max.style.width='60px';row.append(enabled,min,max);group.append(row);
+    for(const input of [enabled,min,max])listen(input,'change',()=>act(()=>app.update({actionRanges:{...app.view().settings.actionRanges,[category]:{enabled:enabled.checked,minMs:Number(min.value),maxMs:Number(max.value)}}})));
+    actionFields.push({category,enabled,min,max});}
   function text(node,value){if(node.textContent!==value)node.textContent=value;}
   function render(){if(disposed)return;const view=app.view(),task=view.task;
+    for(const {category,enabled,min,max}of actionFields){const r=view.settings.actionRanges?.[category];enabled.checked=r?.enabled??true;if(root.activeElement!==min)min.value=r?.minMs??view.settings.minMs;if(root.activeElement!==max)max.value=r?.maxMs??view.settings.maxMs;}
     for(const [key,input]of fields)if(input.type==='checkbox')input.checked=view.settings[key];else if(root.activeElement!==input)input.value=view.settings[key]??'';
     text(quick.querySelector('[role=status]'),view.message);
     const states={READY:'等待启动',STARTING:'启动中',RUNNING:task?.kind==='live'?'人工等待':'运行中',WAITING_PLATFORM:'等待平台信用',UNRESOLVED:'未解决',UNSUPPORTED:'不支持',PAUSED:'暂停',CANCELLED:'已取消'};

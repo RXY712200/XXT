@@ -1,5 +1,21 @@
 # Readiness — DEVELOPMENT / TEST ONLY
 
+Current integrated follow-up starts at 36aa62cfaae9cca2d5c9caafcea34e0a796b27be.
+104/104 tests pass (all previous 92 unchanged). `npm run check` validates source,
+test/script syntax, side-effect-free imports and exact artifact; no runtime deps.
+Native Chrome covers real generated-media ended/policy behavior, local HTML bottom,
+generated injection/Stop/reload, trusted native-tab mouse selection and two-area
+desktop/mobile geometry. These do not establish authenticated acceptance.
+Artifact SHA-256: `24312dcdec8bf9ce8dab9e01ec4f7664d5ec97cfcc11b0afd0b8aec46ae10b48`.
+
+Durable partial processing/explicit deferral, terminal recovery, adaptive trajectory,
+per-action ranges, rest consumption and sanitized decision persistence are now
+implemented. Live lifecycle state machinery is developer-only: private GM transport
+and verified player binding are unwired concrete integration dependencies; no
+companion, new grants, automatic return/closing/refresh or deployment. Proprietary
+readers remain evidence-blocked. Migration map: FORK_MIGRATION_AUDIT.md.
+Older counts/hash sections below describe previous deliveries, not this artifact.
+
 Overall PARTIAL; independent review pending. No authenticated-platform feature
 was tested. The artifact is not stable, fully compatible or production-ready.
 
@@ -7,13 +23,13 @@ was tested. The artifact is not stable, fully compatible or production-ready.
 | --- | --- |
 | F01–F03 | Implemented/synthetic; native stopped bootstrap only; actual course ownership unverified. |
 | F04 | Partial: evidenced objective/video native tab activation with bounded content acknowledgement; real page validation pending. |
-| F05 | Partial: new-lesson content confirmation; same-lesson reconstruction requires manual rescan. |
+| F05 | Partial: fresh new-lesson acknowledgement; positive-credit same-lesson reconstruction is bounded and reverified; other changes retain manual boundaries. |
 | F06–F07 | Implemented/synthetic; native video element with generated audio track at 1.0x, not actual course video. |
 | F08–F10 | Synthetic background/recovery; real OS switching unverified; native policy limits remain. |
 | F11 | Synthetic and native ended deduplication, independent credit retained. |
 | F12–F14 | Synthetic audio success/recovery; native audio dual denial, manual intervention remains. |
 | F15–F18 | Synthetic mixed order and scoped independent completion; authenticated credit patterns unverified. |
-| F19–F21 | Synthetic native-port decisions/acknowledgement and assessment safety; real handler unverified, navigation OFF. |
+| F19–F21 | Synthetic native-port decisions/acknowledgement and assessment safety; fresh navigation ON, saved false preserved; real handler unverified. |
 | F22 | Partial/native generated HTML scrolling only; PDF plugins/proprietary readers unsupported. |
 | F23–F24 | Partial/manual live entry/observations; no trusted automatic return or tab closing. |
 | F25 | Five structural recognition-only cases; executors remain disabled pending real controls/credit evidence. |

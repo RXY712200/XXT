@@ -55,6 +55,25 @@ diagnostics, never automatic execution. No claim that every functional gap is cl
 The latest authorization supersedes the former blanket source-reuse prohibition.
 See [migration audit](docs/FORK_MIGRATION_AUDIT.md) for actual reuse and remaining
 work; earlier independence descriptions are historical, not current blanket claims.
-Fresh settings now enable independently eligible navigation; saved explicit false
-remains false. No claim that comprehensive migration or authenticated acceptance
-is complete. The two-area UI remains unchanged.
+Fresh settings enable independently eligible navigation; saved explicit false and
+Stop remain preserved. The integrated follow-up adds durable partial-result scope,
+explicit unknown deferral (never credit), persisted bounded terminal recovery,
+adaptive 5–7 second HTML traversal, per-action delay overrides and a bounded local
+decision journal. `window.XXT.deferUnknown()` is explicit same-scope processing,
+not permission to leave an unfinished lesson. Correct a task then explicitly rescan;
+only unchanged content retains prior local results. One rest replaces a short delay.
+
+Chinese category settings inherit the existing global 5000–12000ms range unless
+configured; initial media start remains immediate unless its start range is set.
+Document traversal keeps its native 400–900ms sampling unless independently set.
+Disable a category to remove its randomized delay; monitoring/recovery is immediate.
+Existing schema-v1 data is validated and gains optional `actionRanges:null` without
+overwriting saved settings. Corrupt storage fails closed. Local task scopes contain
+private identities readable by same-origin page code; exports contain no such keys.
+
+`src/runtime/replay-lifecycle.js` is independently tested developer infrastructure,
+not an installed GM bridge. No optional companion is built or installed. Trusted
+manager transport, real child binding and permissions remain concrete integration
+dependencies; automatic live return/closing/refresh remains disabled. Proprietary
+PDF and unknown knowledge-map viewers remain unsupported. No authenticated or
+stable-release acceptance is claimed. The two-area UI structure is preserved.

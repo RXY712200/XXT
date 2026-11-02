@@ -1,4 +1,76 @@
-# Fork migration audit — PARTIAL
+# Fork migration audit — integrated follow-up / PARTIAL platform acceptance
+
+## Current delivery (supersedes the historical limited-delivery section below)
+
+XXT baseline `36aa62cfaae9cca2d5c9caafcea34e0a796b27be`, authorized target main.
+All source references in this table are to fork **351c08dc4d772908c3d098e8c9160be434bf1064**,
+compared against upstream **9a23b357875a72ed9bfd9e652257b0849a6855d7**.
+Both reference checkouts remain read-only. No old Git ancestry, raw/private fixtures,
+or complete mixed-origin playback methods were copied. User-added code and the
+separable user-developed portions are reused under the explicit authorization.
+
+| Legacy functions / history | Actual reuse, integration and tests | Implementation boundary | Separate live-evidence gap |
+| --- | --- | --- | --- |
+| `catalog.status()` | Prior delivery's direct extraction `platform/fork-credit.js` retained byte-for-byte; evaluated alongside XXT contradiction/ownership checks | No new credit evidence | Actual course marker patterns still need user testing |
+| `_observeCredit`, `_priorCompletionValid`, `_checkPriorCompletion`, `_continueCompleted`, `_completeVideo`, `_catalogTopology`, `_refreshVideoContext`, `_beginCatalogTransition`, `_queueNavigation`; d7ea26ac / 94b26728 | Adapted user-authored logical-identity/credit continuity in `runtime/browser.js`; original inventory positive catalog rebind, completion gate, navigation permits, native acknowledgement retained. `migration.test.js` + generated-runtime case in `migration-remaining.test.js` | Bounded 10s reconstruction only for prior credited known content; fresh positive proof + same ordered identities/topology required. Timeout/unknown/competing/verification stops. No copied upstream complete method | No authenticated navigation result claimed |
+| `_partialSession`, `_partialSelect`, `_partialEvent`, `_waitPartialTasks`, `_processSupportedTask`, `_recheckCurrentLesson`; 4cd9f48c / e2d33dcd / 94b26728 / be35bec5 | Adapted durable ordered scope/local result/explicit deferral to `runtime/partial.js`, existing coordinator `restorePartial`, `browser.deferUnknown()` and Chinese manual control. Actual app persistence/corrected task/reload tested | Deferred unknown remains unsupported; never navigation authority. Rescan retains only exact unchanged content descriptors. Failed known-task continuation retains existing explicit coordinator policy; runtime does not silently bypass failed audio | Actual mixed layouts and platform markers unverified |
+| `createUnattendedRecoveryCoordinator`, `_recoveryEntryAllowed`, `_partialPauseApplies`; 93f17b8d / ff2592cf / ec010563 / 2b444b2c | Direct user-added factory extraction `runtime/fork-recovery.js`, namespace/clock adaptation; browser hooks use SAME coordinator scheduler. Runtime eligibility/persisted terminal guard adapted, not old monolithic app. Actual app terminal reload/reinjection, direct budget/late progress/missing identity tests | Attempts 1/2 rebind; attempt 3 stops because safe reload is disabled. No automatic reload or second scheduler. Explicit Stop distinct from terminal exhaustion; unknown/assessment disallow recovery | OS switching/real frame replacement still unverified |
+| `_prepareAudio`, `_audioPlayRejected`, `_audioExhausted`, `_audioFollowingTask`, `_discoverAttachmentTask`, `_classifyAttachmentReadiness`, `_waitForAttachmentReadiness`; b880e877 / 0c07d13e / 351c08dc / 706a8616 | Equivalent `adapters/media.js`, audio/video wrappers, inventory and ordered coordinator retained byte-for-byte in playback. Existing media/core tests exercise success, same-owned muted fallback, dual denial, AbortError/readiness, ownership, failed-then-known explicit policy, natural end and independent credit | No duplicate playback engine. Browser policy refusal stays unresolved; no runtime automatic traversal past failed required audio | Native Chrome audio denial is observed honestly, not a platform PASS |
+| `readDocument`, `_waitForDocument`, `_documentContextValid`; 81b4c38f / 36b196eb / 1f494175 / a3099858 | Adapted user-developed one 5000–7000ms trajectory and measured-range formula in `adapters/document.js`; existing unique HTML geometry, readiness/cancellation/stable-bottom retained. Mixed tests + both traversal bounds + native HTML smoke | Only accessible uniquely scrollable HTML; existing position not rewound. Sampling/stable bottom can extend elapsed time beyond sampled trajectory. Proprietary PDF/knowledge-map execution not invented | Actual inner viewer geometry not established |
+| `createGMLive`, native replay lifecycle; gm-live/bridge/native-entry/recorded-live historical suites | Adapted private-capability state logic in `runtime/replay-lifecycle.js`: claim/ack, separate child pulse, pending 120s/child 180s deadlines, 4h expiry, explicit retry, no displacement, single terminal, refresh-once guard. API behavioral tests call real module. Existing native user-entry/observer tests retained | **Developer-only, unbundled infrastructure**, no installed GM transport/companion. Grant-none page context cannot establish privileged sender provenance. No automatic return, real self-close, refresh or pacing integration is enabled. A reviewed isolated GM capability + verified child identity/player binding is a concrete dependency; source GM code cannot be transplanted silently | Real userscript-manager isolation, pairing and tab-close permission are unverified; separate from the intentionally unwired transport dependency |
+| `createTaskPacingCoordinator`, per-action scheduler, journal/risk planning; 97952cac / 7faceb28 / 8c657405 / e0c41449 / 5ee97211 | Adapted category ranges and decision persistence in preferences/diagnostics/panel; equivalent single scheduler, exact-key persisted count/rest retained. New category/journal tests + existing product/scheduler tests | No new random quota algorithm; existing configurable quota/rest retained. Rest suppresses short start delay until expired; one category per transition, chapter precedence. Journal contains only category/state/kind, no completion authority | Real throttling/pacing not authenticated evidence |
+
+### Exact historical commit references
+
+The abbreviated identifiers above resolve in the pinned read-only history:
+`4cd9f48c54ea2b3045defe949756fca8ee7e5d1b`,
+`e2d33dcd1e529b624dafddbb19cedb9ca9139c6b`,
+`94b26728e3350438645bc59f6476610f5c6927ab`,
+`be35bec5a4473a92139f98577bd8d65912f60838`,
+`93f17b8db65ddf51bb260832081f5d3709adb353`,
+`ff2592cf4df15037eb45cd07194e3d9a33e0574d`,
+`ec0105633c6998583e00300f9c880702da12a08a`,
+`2b444b2c4f81d9ec65bf2b4593f83bd654770806`,
+`b880e877702258a744ab5a4fd8bb0ec56e3a50df`,
+`0c07d13e4d964a7d6f3169e771cf56c2b890ac23`,
+`706a8616981a006abe5ee615fb8dac9b6ebf49a9`,
+`81b4c38f0c1d3c20c3de910ef4b77c6a33243efa`,
+`36b196eb03d5a96cb4c80a1abb28f33772d1fc94`,
+`1f494175915bb17285769c722d5fc44498148c79`,
+`a3099858781b1f3d550a9b6400389dfda3f3247e`,
+`97952cac703f2e27dab3046f1848252cb24325c4`,
+`7faceb2858e0e08cd674ddf6cb079f7d23dea3a9`,
+`8c6574050eaaa6232c95a04e74f08de9c807a28f`,
+`e0c414497a2c091515a1356549d64870fbae5c07`,
+`5ee97211889c93c402047eefac3bef90d40fb0e2`.
+
+### Historical regression mapping and current evidence
+
+All 92 baseline tests are retained without edits. New tests call real XXT APIs;
+none evaluate a disconnected copy of an old helper. Original test files/assertions
+were read, but the legacy scripts themselves are NOT run against XXT's different APIs.
+
+| Historical suite reviewed | Ported behavior / executing XXT tests |
+| --- | --- |
+| navigation-v3 | Generated startup with owned credited video still present, completion banner, own marker, multi-chapter catalog, delayed missing/rebuilt iframe + catalog, no replay, one real native handler and independently acknowledged destination; credit negatives/timeout in migration-remaining; baseline core/platform navigation |
+| audio-failure-v3 | Existing media tests: audible success, one fallback, double denial, readiness, replaced media, explicit known-only failure continuation; mixed runtime persistence/recheck added |
+| bridge-v3 | Existing mixed tests reject forged messages, close no unowned tab, stale/early-close observation; no positive forged-provenance test disguised as a trusted result |
+| gm-live-v3 | New replay lifecycle API tests: wrong course/duplicate claim, claim/ack, independent child heartbeat, two-hour simulation, bounded lost-child cancellation, explicit retry, expiry, no live-child displacement, natural-ended proof callback, single terminal, one refresh, completed no reopen |
+| native-entry-v3 | Existing mixed/platform native card recognition and trusted-event boundary retained; missing destination never guessed |
+| recorded-live-v3 | Existing observer distinguishes finite/unknown duration, natural end vs near end, premature owned closure and stale messages; no duration/closure credit |
+| task-pacing-v3 | Direct migrated recovery budget tests + actual app terminal bootstrap; category integer bounds/independent sampling/disabled draws, durable unique counts/rest baseline product tests |
+| customization-v3 | Existing fixed 1.0x settings, independent controls and unsupported/assessment boundaries retained |
+| preserved-v3 | Byte comparisons to XXT baseline for media/audio/video, platform inventory/fork credit, completion/navigation, scheduler, native tabs/navigation, live adapter and metadata; behavioral baseline tests retained |
+
+Current exact commands/results and artifact hash are in HANDOFF and RELEASE_READINESS.
+Two-area UI remains top-right collapsible settings + bottom-right notice; only
+requested category controls and explicit unknown-deferral action were added.
+Fresh eligible navigation is **ON**; saved false and Stop survive schema migration.
+Local partial keys/identities stay in same-origin storage, never diagnostic exports.
+No private snapshots, credentials, reference modifications, companion install,
+grant expansion, stable release or authenticated Chaoxing acceptance is claimed.
+
+## Historical limited delivery (superseded; evidence of what was missing then)
 
 Target starting SHA `11796ff3883e3749bef78896d7ac4fd519564066` (XXT/main).
 Read-only source RXY712200/xuexitongScript review branch pinned to

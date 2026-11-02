@@ -31,15 +31,21 @@ const { createDiagnostics } = __require("src/runtime/diagnostics.js");
 const { mountPanel } = __require("src/ui/panel.js");
 const { evaluateCompletion } = __require("src/core/completion.js");
 const { objectiveVideoTab, activateObjectiveTab, videoTabIdentity } = __require("src/runtime/native-tabs.js");
+const { createPartialStore } = __require("src/runtime/partial.js");
+const { createUnattendedRecoveryCoordinator } = __require("src/runtime/fork-recovery.js");
 const singleton = Symbol.for('XXT.browser.runtime.v1');
 function bootstrap(document, { clock, random = Math.random, storage, ui = true } = {}) {
   const window = document.defaultView;
   if (window[singleton]) return window[singleton];
   const url = new URL(document.URL);
   if (url.protocol !== 'https:' || !/(^|\.)chaoxing\.com$/.test(url.hostname) || !/^\/(?:mooc2-ans\/)?mycourse\/studentstudy\/?$/.test(url.pathname)) return null;
-  const now = clock?.now || (() => Date.now()), reader = createInventoryReader(), log = createDiagnostics();
+  const now = clock?.now || (() => Date.now()), reader = createInventoryReader();
   let safeStorage; try { safeStorage = storage || window.localStorage; } catch { safeStorage = { getItem() { throw Error('denied'); } }; }
   const prefs = createPreferences(safeStorage, now);
+  let durableStorage, recoveryStorage;
+  try{durableStorage=window.localStorage;recoveryStorage=window.sessionStorage;}catch{durableStorage=recoveryStorage={getItem(){throw Error('denied');},setItem(){throw Error('denied');}};}
+  const log = createDiagnostics(durableStorage);
+  const partial=createPartialStore(durableStorage);let recovery, recoverySequence=0, explicitRecheck=false;
   let panel, app, c, stopped = prefs.snapshot().stopped || Boolean(prefs.snapshot().error), message = '等待识别', loadingSince = now(), disposed = false, signature = '', pendingContext = null, tabPending = null;
   const settings = () => prefs.snapshot().settings;
   const wrap = (kind, factory) => ({ recognize: task => settings()[kind] && factory({ background: settings().background }).recognize(task),
@@ -51,15 +57,43 @@ function bootstrap(document, { clock, random = Math.random, storage, ui = true }
       task.owner !== old[i]?.owner || task.player !== old[i]?.player || task.mediaSource?.identity !== old[i]?.mediaSource?.identity);
   }
   const session = acquireSession(document, { clock, adapters: { video: wrap('video', createVideoAdapter), audio: wrap('audio', createAudioAdapter),
-    document: wrap('document', createDocumentAdapter), live: createLiveAdapter() }, autoContinue: true,
-    delayFor: () => c.snapshot().records.some(r => r.state === 'WAITING_PLATFORM') ? sampleDelay(settings(), random) : 0,
-    canStart: () => !stopped && settings().automation && !prefs.resting() &&
+    document: wrap('document', options=>createDocumentAdapter({...options,random,interval:settings().actionRanges?.documentScroll?()=>sampleDelay(settings(),random,'documentScroll'):undefined})), live: createLiveAdapter() }, autoContinue: true,
+    delayFor: (category,task) => {
+      if(prefs.consumeRest())return 0;
+      const next = c.snapshot().records.some(r => r.state === 'WAITING_PLATFORM' || r.localProcessed);
+      const action = next ? {video:'nextVideo',audio:'nextAudio',document:'nextDocument',live:'liveEntry'}[task.kind] : {audio:'audioStart',video:'videoStart',live:'liveEntry'}[task.kind];
+      return action && (next || settings().actionRanges?.[action]) ? sampleDelay(settings(),random,action) : 0;
+    },
+    canStart: () => !stopped && recovery?.getStatus().stage !== 'terminal' && settings().automation && !prefs.resting() &&
       (settings().continuation || !c.snapshot().records.some(r => r.state === 'WAITING_PLATFORM')),
-    onLocalResult(task) { prefs.record(task.key, task.kind); log.add('outcome','WAITING_PLATFORM',task.kind); },
-    onBound() { log.add('recognition'); arm(); },
+    onLocalResult(task) { partial.record(task);prefs.record(task.key, task.kind);recovery?.confirmProgress();log.add('outcome','WAITING_PLATFORM',task.kind); },
+    onBound(next) {
+      log.add('recognition');
+      if(c && next.status==='verified')try{c.restorePartial(partial.bind(next,{recheck:explicitRecheck || !next.tasks.length && evaluateCompletion(next).lessonConfirmed}));}catch{halt('未解决附件范围已改变；请明确重扫');return;}
+      recovery?.cancel();recovery?.restore();arm();
+    },
     onInvalidated(reason) {
       if (!c || stopped || disposed || reason === 'inventory-replaced') return;
+      if (!['context-invalidated','context-changed','continuation-context-invalid'].includes(reason)) { halt('执行或导航未确认：已暂停，请明确重扫');return; }
       const previous = c.snapshot().inventory, next = reader.scan(document);
+      recovery?.cancel();
+      if (previous?.lesson?.credit.status==='confirmed' && previous.tasks.every(t=>['video','audio','document'].includes(t.kind)) &&
+        next.status==='loading' && next.courseKey===previous.courseKey && next.lesson?.key===previous.lesson.key && next.hazards.every(code=>code.startsWith('loading-'))) {
+        pendingContext={previous,courseKey:previous.courseKey,lessonKey:previous.lesson.key,sameLesson:true,until:now()+10000};arm();return;
+      }
+      // User-developed prior-credit continuation: reread authoritative evidence,
+      // stable catalog topology and ordered content identities; never replay ended history.
+      const sameCatalog = previous && next.pageURL===previous.pageURL && next.courseKey === previous.courseKey && next.lesson?.key === previous.lesson?.key &&
+        next.chapters.length===previous.chapters.length && next.chapters.every((item,i)=>item.key===previous.chapters[i].key && item.title===previous.chapters[i].title) &&
+        next.catalog.length === previous.catalog.length && next.catalog.every((item,i) => {
+          const old=previous.catalog[i];return item.key===old.key && item.title===old.title && item.chapterKey===old.chapterKey && JSON.stringify(item.ancestry)===JSON.stringify(old.ancestry);
+        });
+      const known = task => ['video','audio','document'].includes(task.kind);
+      if (sameCatalog && next.status==='verified' && previous.tasks.every(known) && next.tasks.every(known) &&
+        next.tasks.length===previous.tasks.length && next.tasks.every((task,i)=>task.key===previous.tasks[i].key && task.kind===previous.tasks[i].kind && task.mediaSource?.identity===previous.tasks[i].mediaSource?.identity) &&
+        !next.tasks.some(task=>task.player && !task.player.paused && !task.player.ended) && evaluateCompletion(next).lessonConfirmed) {
+        c.bind(next);message='已重新核验平台完成与任务归属';return;
+      }
       // Whole-lesson credit can survive removal of completed known attachments.
       // Do not turn disappearance of a prior unknown task into automatic authority.
       if (previous && next.status === 'verified' && previous.courseKey === next.courseKey && previous.lesson?.key === next.lesson?.key &&
@@ -71,12 +105,28 @@ function bootstrap(document, { clock, random = Math.random, storage, ui = true }
         pendingContext = { previous, courseKey: next.courseKey, lessonKey: next.lesson.key, until: now()+10000 };
         message = '目录已改变，等待新小节内容独立确认'; arm(); return;
       }
+      if (previous && next.status==='verified' && previous.courseKey===next.courseKey && previous.lesson?.key===next.lesson?.key &&
+        recovery?.requestRecovery('frame-replaced')) { message='正在有限恢复当前小节';return; }
       halt('任务已失效或导航未确认：请明确重扫');
     } });
   c = session.coordinator;
+  recovery=createUnattendedRecoveryCoordinator({sessionStorage:recoveryStorage,now,
+    setTimeout(fn,delay){const key=`recovery-${++recoverySequence}`;return c.requestRuntime({key,delay,execute:fn})?key:null;},
+    clearTimeout:key=>c.cancelRuntime(key),location:{reload(){halt('恢复预算已达终点；不自动刷新');}}}, {
+    identity(){const s=reader.scan(document);return s.status==='verified'&&s.courseKey&&s.lesson?.key?JSON.stringify([s.courseKey,s.lesson.key]):null;},
+    safe(){const s=reader.scan(document);return !stopped&&s.status==='verified'&&!s.assessment&&s.tasks.every(t=>['video','audio','document'].includes(t.kind))&&!(c.snapshot().inventory?.tasks.some(t=>['unknown','assessment'].includes(t.kind)));},
+    notice(text){message=text;panel?.render();},fail(text){
+      if(recovery?.getStatus().stage==='terminal'){stopped=true;c.stop();message=text;log.add('recovery','PAUSED');panel?.render();}
+      else halt(text);
+    },canReload:()=>false,
+    fingerprint(){const s=reader.scan(document);return JSON.stringify([s.courseKey,s.lesson?.key,s.catalog.map(t=>t.key)]);},
+    progress(){return c.snapshot().records.some(r=>r.state==='RUNNING'&&c.snapshot().inventory.tasks.find(t=>t.key===r.key)?.player?.currentTime>0);},
+    retry(){const next=reader.scan(document);if(next.status==='verified'){c.bind(next);c.startNext();}else halt('恢复时内容未就绪');}
+  });
   const port = createNativeNavigation(document, reader, () => c.snapshot().inventory);
   function halt(reason, persist = true) {
     stopped = true; c.stop(); message = reason; log.add('stop');
+    recovery?.markExplicitStop();
     if (persist) try { prefs.stop(); } catch { message = '本地存储失败：已安全停止'; }
     panel?.render();
   }
@@ -91,7 +141,7 @@ function bootstrap(document, { clock, random = Math.random, storage, ui = true }
       const next = reader.scan(document), title = document.querySelector('.prev_title');
       if (next.courseKey !== tabPending.courseKey || next.lesson?.key !== tabPending.lessonKey || next.status === 'unsafe') { tabPending = null; halt('页签归属变化：请手动重扫'); return; }
       if (next.status === 'verified' && contentChanged(tabPending.previous,next) && /^(?:\d+\s*)?视频$/.test((title?.getAttribute('title') || title?.textContent || '').trim())) {
-        tabPending = null; c.bind(next); c.startNext(); return;
+        tabPending = null; explicitRecheck=true;c.bind(next);explicitRecheck=false;c.startNext(); return;
       }
       if (now() >= tabPending.until) { tabPending = null; halt('原生视频页签加载超时，请手动重扫'); return; }
       message = '等待原生视频页签内容（不是完成）'; panel?.render(); return;
@@ -101,7 +151,12 @@ function bootstrap(document, { clock, random = Math.random, storage, ui = true }
       if (next.status === 'unsafe' || next.status === 'unsupported' || next.courseKey !== pendingContext.courseKey || next.lesson?.key !== pendingContext.lessonKey) {
         pendingContext = null; halt('新小节归属不稳定，请手动重扫'); return;
       }
-      if (next.status === 'verified' && contentChanged(pendingContext.previous,next)) {
+      if (pendingContext.sameLesson && next.status==='verified') {
+        const previous=pendingContext.previous;pendingContext=null;
+        if (!evaluateCompletion(next).lessonConfirmed || !contentChanged(previous,next)) { halt('完成小节重建证据不足，请明确重扫');return; }
+        c.contextChanged();return;
+      }
+      if (!pendingContext.sameLesson && next.status === 'verified' && contentChanged(pendingContext.previous,next)) {
         pendingContext = null; c.bind(next); c.startNext(); return;
       }
       if (now() >= pendingContext.until) { pendingContext = null; halt('新小节内容确认超时，请手动重扫'); return; }
@@ -119,11 +174,18 @@ function bootstrap(document, { clock, random = Math.random, storage, ui = true }
       if (next.status === 'unsafe' || next.status === 'unsupported') { halt('页面验证或任务归属不明确：需人工处理'); return; }
       const different = next.courseKey && next.lesson?.key && (next.courseKey !== snapshot.courseKey || next.lesson.key !== snapshot.lesson?.key);
       if (different) { c.contextChanged(); return; }
+      if (next.status==='loading' && snapshot.lesson?.credit.status==='confirmed' && snapshot.tasks.every(t=>['video','audio','document'].includes(t.kind)) &&
+        next.courseKey===snapshot.courseKey && next.lesson?.key===snapshot.lesson.key && next.hazards.every(code=>code.startsWith('loading-'))) {
+        // Wait for fresh credit after reconstruction; retained snapshots cannot authorize it.
+        stopped=true;c.contextChanged();stopped=false;
+        pendingContext={previous:snapshot,courseKey:snapshot.courseKey,lessonKey:snapshot.lesson.key,sameLesson:true,until:now()+10000};arm();return;
+      }
       if (next.status === 'verified' && !next.tasks.length && evaluateCompletion(next).lessonConfirmed) { c.contextChanged(); return; }
       if (next.status === 'verified' && snapshot.status === 'loading' && !state.active) {
         loadingSince = now(); c.bind(next); message = '已重新识别当前小节'; c.startNext(); return;
       }
-      // Same-lesson replacement cannot resurrect local-ended evidence or replay automatically.
+      // The invalidation callback owns bounded recovery and positive-credit rebinding.
+      if (snapshot.status === 'verified' && next.status === 'verified') { c.contextChanged(); return; }
       if (snapshot.status === 'verified') { halt('当前任务结构改变：已取消旧任务，请手动重扫'); return; }
       if (now() - loadingSince >= 10000) { halt('初始化超时：请手动重扫'); return; }
       message = '等待页面或播放器加载'; panel?.render(); return;
@@ -132,7 +194,8 @@ function bootstrap(document, { clock, random = Math.random, storage, ui = true }
     else {
       const decision = settings().navigation && !state.active ? c.navigationDecision(fresh.assessment === 'optional' ? 'assessment' : state.records.some(r => r.state === 'WAITING_PLATFORM') ? 'completed' : 'prior-credit') : null;
       if (decision?.allowed) {
-        c.queueNavigation(decision.permit, port, { delay: sampleDelay(settings(),random), refresh: true }); log.add('navigation'); message = '等待已验证导航';
+        const target=fresh.catalog.find(t=>t.key===decision.permit.targetKey),category=decision.permit.mode==='assessment'?'assessment':target?.chapterKey!==fresh.lesson.chapterKey?'nextChapter':'nextLesson';
+        c.queueNavigation(decision.permit, port, { delay: prefs.consumeRest()?0:sampleDelay(settings(),random,category), refresh: true }); log.add('navigation'); message = '等待已验证导航';
       } else if (!state.active && !state.records.some(r => ['FAILED','UNRESOLVED','UNSUPPORTED','PAUSED','CANCELLED'].includes(r.state))) c.startNext();
       const current = c.snapshot();
       message = current.records.some(r => r.kind === 'live' && r.state === 'RUNNING') ? '直播入口需真实手动操作；结果未验证' :
@@ -155,12 +218,13 @@ function bootstrap(document, { clock, random = Math.random, storage, ui = true }
     const snapshot = reader.scan(document);
     if (beginObjective(snapshot,true)) { panel?.render(); return true; }
     if (snapshot.status !== 'verified') { halt('页面未就绪或存在安全边界，请稍后明确重扫'); return false; }
-    prefs.resume(); stopped = false; pendingContext = null; tabPending = null; loadingSince = now(); c.bind(snapshot); c.resume(); c.startNext(); panel?.render(); return true;
+    prefs.resume();recovery.resumeExplicitly();stopped = false; pendingContext = null; tabPending = null; loadingSince = now();explicitRecheck=true;c.bind(snapshot);explicitRecheck=false;c.resume(); c.startNext(); panel?.render(); return true;
   }
   app = Object.freeze({ start: run, resume: run, rescan() {
     if (stopped) { message = '停止状态已保留，请明确开始或恢复'; panel?.render(); return false; }
     return run();
   }, stop: () => halt('已明确停止；重载不会自动恢复'),
+    deferUnknown(){const inventory=c.snapshot().inventory;if(stopped||!inventory||!inspectInventory(inventory).valid)throw Error('unsafe-defer');c.restorePartial(partial.defer(inventory));c.startNext();panel?.render();},
     update(patch) {
       try { prefs.update(patch); } catch (error) { if (prefs.snapshot().error) halt('本地存储失败：已安全停止',false); throw error; }
       log.add('settings');
@@ -179,14 +243,14 @@ function bootstrap(document, { clock, random = Math.random, storage, ui = true }
         localDone: Boolean(state.inventory && inspectInventory(state.inventory).valid && state.records.some(r => r.key === task?.key && r.state === 'WAITING_PLATFORM')), platformConfirmed: state.inventory ? evaluateCompletion(state.inventory).lessonConfirmed : false,
         delayed: c.actions().some(a => a.status === 'pending' && (a.key.includes(':start:') || a.key.endsWith(':navigate'))), restRemaining: Math.max(0,prefs.snapshot().restUntil-now()) });
     },
-    dispose() { if (disposed) return; disposed = true; document.removeEventListener('click',manualTab,true); session.dispose(); panel?.destroy(); if (window[singleton] === app) delete window[singleton]; if (window.XXT === app) delete window.XXT; }
+    dispose() { if (disposed) return; disposed = true; recovery?.dispose();document.removeEventListener('click',manualTab,true); session.dispose(); panel?.destroy(); if (window[singleton] === app) delete window[singleton]; if (window.XXT === app) delete window.XXT; }
   });
   function beginObjective(snapshot, explicit = false) {
     const tab = objectiveVideoTab(document);
     if (!tab || !snapshot.courseKey || !snapshot.lesson?.key || snapshot.tasks.length || snapshot.status !== 'loading' ||
       !snapshot.hazards.every(code => code.startsWith('loading-'))) return false;
     if (tabPending && !stopped) return true;
-    if (explicit) { prefs.resume(); stopped = false; pendingContext = null; }
+    if (explicit) { prefs.resume();recovery.resumeExplicitly(); stopped = false; pendingContext = null; }
     c.bind(snapshot);
     if (explicit && !c.resume({allowLoading:true})) { halt('目标页归属无法重新验证'); return true; }
     tabPending = { previous: snapshot, courseKey: snapshot.courseKey, lessonKey: snapshot.lesson.key, until: now()+10000 };
@@ -203,7 +267,7 @@ function bootstrap(document, { clock, random = Math.random, storage, ui = true }
   document.addEventListener('click',manualTab,true);
   window[singleton] = app; window.XXT = app;
   if (ui && document.body) panel = mountPanel(document, app);
-  if (stopped || !settings().automation) { stopped = true; c.stop(); if (prefs.snapshot().error) log.add('storage'); message = prefs.snapshot().error ? '本地存储异常：已安全停止' : '已保留停止状态，请明确恢复'; }
+  if (stopped || !settings().automation || recovery.getStatus().stopped || recovery.getStatus().stage==='terminal') { stopped = true; c.stop(); if (prefs.snapshot().error) log.add('storage'); message = prefs.snapshot().error ? '本地存储异常：已安全停止' : '已保留停止或终止状态，请明确恢复'; }
   else {
     const snapshot = reader.scan(document);
     if (!beginObjective(snapshot)) {
@@ -560,6 +624,7 @@ function createCoordinator({ clock, adapters = {}, delayFor = () => 0, continueK
   const now = clock?.now || (() => Date.now());
   let inventory = null, records = [], generation = 0, stopped = false, destroyed = false;
   let active = null, navigation = null, diagnostic = 'no-inventory';
+  let deferred = new Set();
   const view = () => Object.freeze({ inventory, generation, stopped: stopped || destroyed,
     active: Boolean(active || navigation), diagnostic,
     records: Object.freeze(records.map(({ task, ...record }) => Object.freeze({ ...record, history: Object.freeze([...record.history]) }))) });
@@ -579,6 +644,7 @@ function createCoordinator({ clock, adapters = {}, delayFor = () => 0, continueK
     if (destroyed) return false;
     inspectInventory(next); // Reject forged snapshots before replacing an owned context.
     invalidate('inventory-replaced'); inventory = next;
+    deferred = new Set();
     records = next.tasks.map(task => {
       const record = { task, key: task.key, kind: task.kind, state: State.DISCOVERED, history: [State.DISCOVERED] };
       transition(record, State.PENDING); return record;
@@ -625,10 +691,11 @@ function createCoordinator({ clock, adapters = {}, delayFor = () => 0, continueK
     for (const candidate of records) {
       // Unknown boundaries are not erased even if an unrelated marker is positive.
       if (['unknown', 'assessment'].includes(candidate.kind)) {
+        if (candidate.kind === 'unknown' && deferred.has(candidate.key)) continue;
         if (candidate.state === State.PENDING) transition(candidate, State.UNSUPPORTED);
         diagnostic = candidate.task.recognition?.reason || 'unsupported-task-boundary'; return false;
       }
-      if (evaluation.taskConfirmed.includes(candidate.key) || candidate.state === State.WAITING_PLATFORM) continue;
+      if (evaluation.taskConfirmed.includes(candidate.key) || candidate.state === State.WAITING_PLATFORM || candidate.localProcessed) continue;
       if (candidate.state === State.UNRESOLVED && continueKnownAfterFailure) continue;
       if (candidate.state !== State.PENDING) { diagnostic = 'unresolved-task'; return false; }
       record = candidate; break;
@@ -745,6 +812,19 @@ function createCoordinator({ clock, adapters = {}, delayFor = () => 0, continueK
     poll(); return true;
   }
   return Object.freeze({ bind, startNext, waitForMedia, snapshot: view, queueNavigation,
+    restorePartial(saved) {
+      if (!valid() || active || navigation) return false;
+      for (const record of records) {
+        if (saved.ended?.includes(record.key) && ['video','audio','document'].includes(record.kind)) record.localProcessed = true;
+        if (saved.deferred?.includes(record.key) && record.kind === 'unknown') deferred.add(record.key);
+      }
+      return true;
+    },
+    requestRuntime({key,delay,execute}) {
+      const expected=generation;if(stopped||destroyed)return false;
+      return scheduler.request({key:`${generation}:external:${key}`,delay,validate:()=>!stopped&&!destroyed&&generation===expected,execute});
+    },
+    cancelRuntime(key) { return scheduler.cancel(`${generation}:external:${key}`); },
     scheduleRuntime({ key, delay, execute }) {
       const expected = generation;
       if (stopped || destroyed) return false;
@@ -1110,16 +1190,16 @@ function locateReader(task) {
   return fitting.length === 1 ? fitting[0].scrollingElement : null;
 }
 
-function createDocumentAdapter({ enabled = true, random = Math.random } = {}) {
+function createDocumentAdapter({ enabled = true, random = Math.random, interval } = {}) {
   return Object.freeze({ recognize: task => enabled && task.kind === 'document' && task.identity === 'verified',
     start(context) {
-      let viewer, disposed = false, stable = 0, lastRange = null, lastTop = null, stuck = 0;
+      let viewer, disposed = false, stable = 0, lastRange = null, lastTop = null, stuck = 0, traversalStart = null, duration = null, initialTop = 0;
       let resolve, reject, waitingKey = 0;
       const initialDeadline = context.now() + 5000, scheduled = new Set();
       const promise = new Promise((yes, no) => { resolve = yes; reject = no; });
       function cancel() { if (disposed) return; disposed = true; for (const key of scheduled) context.cancelScheduled(key); context.signal.removeEventListener('abort', cancel); reject(Error('reader-cancelled')); }
       function fail(reason) { reject(Error(reason)); context.fail(reason); cancel(); }
-      function delay() { const n = random(); if (!(n >= 0 && n < 1)) throw Error('invalid-reader-random'); return 400 + Math.floor(n * 501); }
+      function delay() { if(interval){const ms=interval();if(!Number.isSafeInteger(ms)||ms<0||ms>60000)throw Error('invalid-reader-interval');return ms;}const n = random(); if (!(n >= 0 && n < 1)) throw Error('invalid-reader-random'); return 400 + Math.floor(n * 501); }
       function sample() {
         if (disposed || !context.isCurrent()) return;
         let fresh; try { fresh = locateReader(context.task); } catch (error) { fail(error.message); return; }
@@ -1132,12 +1212,17 @@ function createDocumentAdapter({ enabled = true, random = Math.random } = {}) {
           if (top === lastTop && range === lastRange) stuck++; else stuck = 0;
           if (stuck >= 3) { fail('reader-no-observed-movement'); return; }
           const n = random(); if (!(n >= 0 && n < 1)) { fail('invalid-reader-random'); return; }
-          viewer.scrollTop = Math.min(range, top + Math.max(1, Math.floor(viewer.clientHeight * (0.15 + n * 0.2))));
+          // User-developed readDocument adaptive trajectory, fork 351c08d:
+          // one 5000–7000ms sample, actual changing range, never platform credit.
+          const progress = Math.max(0, Math.min(1, (context.now() - traversalStart) / duration));
+          viewer.scrollTop = Math.min(range, Math.max(top, initialTop + progress * Math.max(0,range-initialTop)));
         }
         lastTop = top; lastRange = range;
       }
       const handle = Object.freeze({ cancel, activate() {
         if (disposed) return;
+        const draw=random();if(!(draw>=0&&draw<1)){fail('invalid-reader-random');return;}
+        duration=5000+Math.floor(draw*2001);traversalStart=context.now();initialTop=viewer.scrollTop;
         // Variable intervals under the same recurring scheduler, using fixed short
         // ticks and a local next deadline rather than unbounded one-shot history.
         let due = context.now(); const key = 'document-reader'; scheduled.add(key);
@@ -1237,11 +1322,14 @@ Object.assign(__exports, {createNativeNavigation});
 const storageKey = 'xxt.state.v1';
 const defaults = Object.freeze({ automation: true, video: true, audio: true, document: true, continuation: true,
   navigation: true, background: true, delays: true, minMs: 5000, maxMs: 12000,
-  restEnabled: false, restCount: null, restMs: null });
+  restEnabled: false, restCount: null, restMs: null, actionRanges: null });
+const actionCategories=Object.freeze(['videoStart','audioStart','nextVideo','nextAudio','documentScroll','nextDocument','nextLesson','nextChapter','assessment','liveEntry']);
 
 function validateSettings(input) {
   if (!input || typeof input !== 'object' || Array.isArray(input) || Object.keys(input).some(key => !Object.hasOwn(defaults,key))) throw Error('invalid-settings');
   const settings = { ...defaults, ...input };
+  if(settings.actionRanges!==null){if(typeof settings.actionRanges!=='object'||Array.isArray(settings.actionRanges)||Object.keys(settings.actionRanges).some(k=>!actionCategories.includes(k)))throw Error('invalid-action-ranges');
+    const ranges={};for(const [key,r]of Object.entries(settings.actionRanges)){if(!r||typeof r.enabled!=='boolean'||!Number.isSafeInteger(r.minMs)||!Number.isSafeInteger(r.maxMs)||r.minMs<0||r.maxMs>60000||r.minMs>r.maxMs)throw Error('invalid-action-range');ranges[key]=Object.freeze({enabled:r.enabled,minMs:r.minMs,maxMs:r.maxMs});}settings.actionRanges=Object.freeze(ranges);}
   for (const key of Object.keys(defaults).filter(key => typeof defaults[key] === 'boolean')) if (typeof settings[key] !== 'boolean') throw Error('invalid-settings');
   if (![settings.minMs,settings.maxMs].every(n => Number.isSafeInteger(n) && n >= 0 && n <= 60000) || settings.minMs > settings.maxMs) throw Error('invalid-delay-range');
   if (settings.restCount !== null && (!Number.isSafeInteger(settings.restCount) || settings.restCount < 1 || settings.restCount > 1000)) throw Error('invalid-rest-count');
@@ -1249,10 +1337,12 @@ function validateSettings(input) {
   if (settings.restEnabled && (settings.restCount === null || settings.restMs === null)) throw Error('rest-configuration-required');
   return Object.freeze(settings);
 }
-function sampleDelay(settings, random = Math.random) {
+function sampleDelay(settings, random = Math.random, category = null) {
   if (!settings.delays) return 0;
+  const range=settings.actionRanges?.[category];if(range?.enabled===false)return 0;
   const draw = random(); if (!(draw >= 0 && draw < 1)) throw Error('invalid-random');
-  return settings.minMs + Math.floor(draw * (settings.maxMs - settings.minMs + 1));
+  const min=range?.minMs??settings.minMs,max=range?.maxMs??settings.maxMs;
+  return min + Math.floor(draw * (max - min + 1));
 }
 
 function createPreferences(storage, now = () => Date.now()) {
@@ -1289,23 +1379,32 @@ function createPreferences(storage, now = () => Date.now()) {
       save({ ...state, seen: [...state.seen, key], count: rest ? 0 : count,
         restUntil: rest ? now() + state.settings.restMs : state.restUntil }); return true;
     },
-    resting: () => state.restUntil > now()
+    resting: () => state.restUntil > now(),
+    consumeRest() {
+      if (!state.restUntil || state.restUntil > now()) return false;
+      save({...state,restUntil:0});return true;
+    }
   });
 }
 
-Object.assign(__exports, {storageKey,defaults,validateSettings,sampleDelay,createPreferences});
+Object.assign(__exports, {storageKey,defaults,actionCategories,validateSettings,sampleDelay,createPreferences});
 },
 "src/runtime/diagnostics.js": function(__exports, __require) {
 const categories = new Set(['recognition','selection','outcome','recovery','manual','credit','navigation','stop','settings','storage']);
 const kinds = new Set(['video','audio','document','live','assessment','unknown']);
 const states = new Set(['DISCOVERED','PENDING','READY','STARTING','RUNNING','LOCAL_COMPLETED','WAITING_PLATFORM','FAILED','UNRESOLVED','UNSUPPORTED','PAUSED','CANCELLED']);
-function createDiagnostics() {
+function createDiagnostics(storage) {
   let rows = [];
+  const key='xxt.decisions.v1';
+  const safe = row => row && categories.has(row.category) && (states.has(row.state)||row.state==='OTHER') && kinds.has(row.kind) && Object.keys(row).every(k=>['category','state','kind'].includes(k));
+  try { const saved=JSON.parse(storage?.getItem(key)||'[]');if(Array.isArray(saved)&&saved.length<=100&&saved.every(safe))rows=saved.map(row=>Object.freeze({...row})); } catch { /* Diagnostics never grant execution authority. */ }
+  function persist(){try{storage?.setItem(key,JSON.stringify(rows));}catch{/* Optional journal must not change completion or Stop. */}}
   return Object.freeze({ add(category, state, kind) {
     if (!categories.has(category)) return;
     rows.push(Object.freeze({ category, state: states.has(state) ? state : 'OTHER', kind: kinds.has(kind) ? kind : 'unknown' }));
     rows = rows.slice(-100);
-  }, export: () => JSON.stringify({ format: 'xxt-diagnostics-v1', events: rows }), clear() { rows = []; } });
+    persist();
+  }, export: () => JSON.stringify({ format: 'xxt-diagnostics-v1', events: rows }), clear() { rows = [];persist(); } });
 }
 
 Object.assign(__exports, {createDiagnostics});
@@ -1313,6 +1412,7 @@ Object.assign(__exports, {createDiagnostics});
 "src/ui/panel.js": function(__exports, __require) {
 const labels = { automation: '主自动化', video: '视频', audio: '音频', document: '文档', continuation: '安全续接', navigation: '允许小节/章节导航', background: '后台恢复', delays: '随机延迟', restEnabled: '周期休息' };
 const names = { video: '视频', audio: '音频', document: '文档', live: '直播（手动）', assessment: '测验（不作答）', unknown: '未知', 'book-knowledge-map': '书籍/知识图谱（仅识别）', 'timed-reader': '计时阅读（仅识别）', 'audio-slides': '音频幻灯（仅识别）', hyperlink: '链接任务（仅识别）', 'legacy-multimedia': '旧式动画（不支持执行）' };
+const { actionCategories } = __require("src/runtime/preferences.js");
 function mountPanel(document, app) {
   const host = document.createElement('aside'), notice = document.createElement('aside');
   host.id = 'xxt-control'; notice.id = 'xxt-notice';
@@ -1327,6 +1427,7 @@ function mountPanel(document, app) {
   button(quick.querySelector('span'),'停止自动操作',app.stop);
   button(quick.querySelector('span'),'重新自动检测',app.start);
   for(const [text,fn] of [['开始',app.start],['停止',app.stop],['恢复',app.resume],['重扫当前小节',app.rescan]])button(root.querySelector('#actions'),text,fn);
+  if(app.deferUnknown)button(root.querySelector('#actions'),'保留未知附件并继续已知任务',app.deferUnknown);
   button(root.querySelector('#defaults'),'恢复默认',app.restore);
   const report=root.querySelector('textarea');
   button(root.querySelector('#reports'),'查看脱敏诊断',()=>{report.hidden=false;report.value=app.exportDiagnostics();});
@@ -1338,8 +1439,14 @@ function mountPanel(document, app) {
     listen(input,'change',()=>act(()=>app.update({[key]:input.type==='checkbox'?input.checked:input.value===''?null:Number(input.value)})));
     label.append(input);root.querySelector(['delays','minMs','maxMs'].includes(key)?'#delays':['restEnabled','restCount','restMs'].includes(key)?'#rest':'#features').append(label);fields.set(key,input);
   }
+  const actionFields=[];const actionNames={videoStart:'视频启动',audioStart:'音频启动',nextVideo:'下一视频',nextAudio:'下一音频',documentScroll:'文档采样间隔',nextDocument:'下一文档',nextLesson:'下一小节',nextChapter:'下一章节',assessment:'测验交接',liveEntry:'直播登记等待'};
+  const group=document.createElement('details');group.innerHTML='<summary>分类延迟（未配置时继承总范围）</summary>';root.querySelector('#delays').append(group);
+  for(const category of actionCategories){const row=document.createElement('label');row.textContent=actionNames[category];const enabled=document.createElement('input'),min=document.createElement('input'),max=document.createElement('input');enabled.type='checkbox';min.type=max.type='number';min.style.width=max.style.width='60px';row.append(enabled,min,max);group.append(row);
+    for(const input of [enabled,min,max])listen(input,'change',()=>act(()=>app.update({actionRanges:{...app.view().settings.actionRanges,[category]:{enabled:enabled.checked,minMs:Number(min.value),maxMs:Number(max.value)}}})));
+    actionFields.push({category,enabled,min,max});}
   function text(node,value){if(node.textContent!==value)node.textContent=value;}
   function render(){if(disposed)return;const view=app.view(),task=view.task;
+    for(const {category,enabled,min,max}of actionFields){const r=view.settings.actionRanges?.[category];enabled.checked=r?.enabled??true;if(root.activeElement!==min)min.value=r?.minMs??view.settings.minMs;if(root.activeElement!==max)max.value=r?.maxMs??view.settings.maxMs;}
     for(const [key,input]of fields)if(input.type==='checkbox')input.checked=view.settings[key];else if(root.activeElement!==input)input.value=view.settings[key]??'';
     text(quick.querySelector('[role=status]'),view.message);
     const states={READY:'等待启动',STARTING:'启动中',RUNNING:task?.kind==='live'?'人工等待':'运行中',WAITING_PLATFORM:'等待平台信用',UNRESOLVED:'未解决',UNSUPPORTED:'不支持',PAUSED:'暂停',CANCELLED:'已取消'};
@@ -1387,6 +1494,95 @@ function activateObjectiveTab(document, target) {
 }
 
 Object.assign(__exports, {currentStepTitle,videoTabIdentity,isActiveVideoTab,objectiveVideoTab,activateObjectiveTab});
+},
+"src/runtime/partial.js": function(__exports, __require) {
+// Adapted user-developed partial-session contract (4cd9f48/e2d33dc/be35bec):
+// stable ordered content scope, explicit deferral, no platform-credit authority.
+function createPartialStore(storage) {
+  const key='xxt.partial-session.v1';let state=null;
+  function scope(inventory){return JSON.stringify([inventory.courseKey,inventory.lesson?.key,inventory.tasks.map(t=>[t.key,t.kind,t.ownerKey,t.mediaSource?.identity||null])]);}
+  function save(){if(state.ended.length+state.deferred.length>2048)throw Error('partial-capacity');storage.setItem(key,JSON.stringify(state));}
+  function bind(inventory,{recheck=false}={}){
+    const current=scope(inventory);const raw=storage.getItem(key);state=raw?JSON.parse(raw):null;
+    if(state && (state.version!==1||typeof state.scope!=='string'||!Array.isArray(state.ended)||!Array.isArray(state.deferred)||state.ended.length+state.deferred.length>2048||[...state.ended,...state.deferred].some(x=>typeof x!=='string')||new Set(state.ended).size!==state.ended.length||new Set(state.deferred).size!==state.deferred.length))throw Error('invalid-partial-state');
+    if(state){const stored=JSON.parse(state.scope);if(!Array.isArray(stored)||stored.length!==3||!stored[0]||!stored[1]||!Array.isArray(stored[2])||stored[2].some(t=>!Array.isArray(t)||t.length!==4))throw Error('invalid-partial-scope');}
+    if(state?.scope!==current){
+      const old=state&&JSON.parse(state.scope),fresh=JSON.parse(current);
+      const sameLesson=old&&JSON.stringify(old.slice(0,2))===JSON.stringify(fresh.slice(0,2));
+      if(sameLesson&&!recheck&&(state.ended.length||state.deferred.length||old[2].some(t=>t[1]==='unknown')))throw Error('partial-scope-changed');
+      const unchanged=sameLesson?fresh[2].filter(task=>old[2].some(previous=>JSON.stringify(previous)===JSON.stringify(task))).map(task=>task[0]):[];
+      state={version:1,scope:current,ended:state?.ended.filter(k=>unchanged.includes(k))||[],deferred:state?.deferred.filter(k=>unchanged.includes(k))||[]};save();
+    }
+    return {ended:[...state.ended],deferred:[...state.deferred]};
+  }
+  return Object.freeze({bind,record(task){if(!state)return;if(!state.ended.includes(task.key)){state.ended.push(task.key);save();}},
+    defer(inventory){if(!state||state.scope!==scope(inventory))throw Error('partial-scope-changed');for(const task of inventory.tasks)if(task.kind==='unknown'&&!state.deferred.includes(task.key))state.deferred.push(task.key);save();return {ended:[...state.ended],deferred:[...state.deferred]};}});
+}
+
+Object.assign(__exports, {createPartialStore});
+},
+"src/runtime/fork-recovery.js": function(__exports, __require) {
+// Authorized user-developed extraction from RXY712200/xuexitongScript
+// 351c08dc4d772908c3d098e8c9160be434bf1064; namespace/clock adapted.
+function createUnattendedRecoveryCoordinator(env, hooks) {
+    const key = 'xxt.unattended-recovery.v1';
+    let state, timer = null, disposed = false, storageFailed = false;
+    const identity = () => hooks.identity();
+    const persist = () => { try { env.sessionStorage.setItem(key, JSON.stringify(state)); return true; } catch (_) { if (!storageFailed) { storageFailed = true; hooks.fail('恢复预算无法持久保存'); } return false; } };
+    const fresh = id => ({ version: 1, identity: id, attempts: 0, stage: 'idle', reloadUsed: false, reason: '', stopped: false, cycle: (env.now ? env.now() : Date.now()) });
+    const restore = () => {
+        const id = identity();
+        try {
+            const raw = env.sessionStorage.getItem(key); state = raw ? JSON.parse(raw) : fresh(id);
+            if (state.version !== 1 || !Number.isInteger(state.attempts) || state.attempts < 0 || state.attempts > 3 ||
+                (state.identity !== null && typeof state.identity !== 'string') || !Number.isSafeInteger(state.cycle) || typeof state.reason !== 'string' ||
+                typeof state.stopped !== 'boolean' || typeof state.reloadUsed !== 'boolean' ||
+                !['idle','waiting','observing','reload','terminal'].includes(state.stage)) throw Error();
+            if (id && state.identity !== id) state = { ...fresh(id), stopped: state.stopped };
+            if (state.stage === 'waiting' && timer === null) state.stage = 'observing';
+        } catch (_) { state = { ...fresh(id), stopped: true, stage: 'terminal' }; }
+        return state;
+    };
+    restore();
+    const cancel = reason => { if (timer !== null) env.clearTimeout(timer); timer = null; if (['terminal-block','navigation','user-interaction'].includes(reason)) { state.stage = 'terminal'; persist(); } };
+    const finish = reason => { cancel(); state.stage = 'terminal'; state.reason = reason; persist(); hooks.fail(reason); };
+    const requestRecovery = reason => {
+        if (disposed || state.stopped || state.stage === 'terminal') return false;
+        if (!identity() || identity() !== state.identity || !['context-stale','frame-replaced','readiness'].includes(reason) || !hooks.safe()) return false;
+        if (timer !== null && state.stage === 'waiting') return true;
+        cancel();
+        if (state.attempts >= 3) { finish('当前小节连续恢复失败，已停止；不会继续刷新'); return true; }
+        state.attempts++; state.stage = 'waiting'; state.reason = reason;
+        if (!persist()) return false;
+        hooks.notice(`自动恢复 ${state.attempts}/3：${['','重新检测当前任务','重新初始化当前小节','安全刷新当前页面'][state.attempts]}`);
+        const fingerprint = hooks.fingerprint?.();
+        timer = env.setTimeout(() => {
+            timer = null;
+            if (disposed || state.stopped || identity() !== state.identity || (hooks.fingerprint && hooks.fingerprint() !== fingerprint) || !hooks.safe()) return finish('恢复上下文或安全条件已变化');
+            state.stage = 'observing';
+            if (state.attempts === 3) {
+                if (state.reloadUsed || !hooks.canReload()) return finish('当前状态不允许安全刷新，已停止');
+                state.reloadUsed = true; state.stage = 'reload'; if (persist()) env.location.reload(); return;
+            }
+            persist(); hooks.retry(state.attempts);
+            observe();
+        }, 1000);
+        return true;
+    };
+    const observe = () => {
+        if (disposed || state.stopped || !state.attempts || timer !== null) return;
+        timer = env.setTimeout(() => { timer = null; if (identity() !== state.identity) return cancel(); if (!hooks.progress()) requestRecovery('readiness'); }, 15000);
+    };
+    return { restore, requestRecovery, classifyFailure: reason => ['context-stale','frame-replaced','readiness'].includes(reason) && hooks.safe(),
+        cancel, dispose() { disposed = true; cancel(); }, getStatus: () => ({ ...state }),
+        confirmProgress() { if (!disposed && !state.stopped && state.stage !== 'terminal' && state.attempts && identity() && identity() === state.identity) { cancel(); state = fresh(identity()); persist(); } },
+        markExplicitStop() { cancel(); state.stopped = true; persist(); },
+        resumeExplicitly() { cancel(); state = fresh(identity()); persist(); },
+        observe,
+    };
+}
+
+Object.assign(__exports, {createUnattendedRecoveryCoordinator});
 }
 };
 const __cache=Object.create(null);

@@ -1,5 +1,33 @@
 # Pre-edit consolidated gap audit
 
+## Current integrated migration disposition
+
+Follow-up baseline 36aa62cfaae9cca2d5c9caafcea34e0a796b27be. Historical matrix
+below records earlier gaps; current dispositions supersede it where listed:
+
+- F05/F18–F20: credited known-video catalog/iframe reconstruction now revalidates
+  identities, topology and authoritative credit, with bounded wait/native ack;
+  text-only/sibling/contradictory/unknown/verification/active-media/timeout negatives
+  are exercised through the actual app. No unconditional stale-scope continuation.
+- F16/F26: durable ordered scope/local progress and explicit unknown deferral;
+  unresolved entries remain unsupported. Corrected-task recheck preserves exact
+  unchanged content only. Never infer credit from removal, logs or local results.
+- F22: adaptive 5000–7000ms measured HTML traversal plus stable-bottom samples;
+  inaccessible proprietary PDF and unknown knowledge-map geometry remain D.
+- F27–F30/F32: ten configurable action categories, rest replaces one short delay,
+  bounded sanitized persistent journal and extracted three-attempt durable recovery
+  now integrated. No recovery reload; explicit Stop survives reinjection; a missing
+  identity is not a new lesson. One coordinator/scheduler remains.
+- F24: independent private-capability claim/ack/child-pulse/terminal/retry module
+  implemented and tested. **Unwired trusted transport is a concrete implementation
+  dependency**, not a claim that automatic replay works. No companion or new grants;
+  real child/player ownership and userscript-manager isolation require review.
+
+104 tests pass; all 92 baseline tests retained without edits. Native media, layout,
+generated runtime and trusted-tab synthetic checks remain distinct from authenticated
+acceptance. FORK_MIGRATION_AUDIT.md maps every requested subsystem and test lineage.
+Five phases/ten steps unchanged; stop after delivery for independent review.
+
 Reviewed starting SHA: `5f91168074a8df13af850080178e45f43cb980a7`.
 This report is written before production edits. No sixth phase is introduced.
 Reference behavior: upstream `9a23b357875a72ed9bfd9e652257b0849a6855d7` and
@@ -17,7 +45,7 @@ validation; D evidence-blocked; E intentionally excluded.
 | F06–F11 | C | Owned media, 1.0x, bounded background recovery/end; actual browser focus/credit coverage needed. |
 | F12–F14 | C | Audio fallback/readiness and explicit failure continuation exist; native policy denial remains possible. |
 | F15–F18 | C | Ordered inventory and independent credit gates exist; actual mixed markers need validation. |
-| F19–F21 | C | Native permit/ack and assessment eligibility exist, navigation defaults OFF; real catalog handler test needed. |
+| F19–F21 | C | Native permit/ack and assessment eligibility exist, fresh navigation defaults ON with saved false preserved; real catalog handler test needed. |
 | F22 | D/C | Native HTML geometry works; proprietary/plugin PDF and knowledge-map geometry need authentic inner-viewer evidence. |
 | F23–F24 | D/C | Native entry/manual observation exists; trustworthy child ownership/transport and completion evidence missing. No guessed opening/return. |
 | F25 | A/D | Replace disabled placeholder recognition where reference supplies explicit route/module/selector combinations; execution remains disabled without reader/credit evidence. |

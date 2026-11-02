@@ -28,16 +28,16 @@ export function locateReader(task) {
   return fitting.length === 1 ? fitting[0].scrollingElement : null;
 }
 
-export function createDocumentAdapter({ enabled = true, random = Math.random } = {}) {
+export function createDocumentAdapter({ enabled = true, random = Math.random, interval } = {}) {
   return Object.freeze({ recognize: task => enabled && task.kind === 'document' && task.identity === 'verified',
     start(context) {
-      let viewer, disposed = false, stable = 0, lastRange = null, lastTop = null, stuck = 0;
+      let viewer, disposed = false, stable = 0, lastRange = null, lastTop = null, stuck = 0, traversalStart = null, duration = null, initialTop = 0;
       let resolve, reject, waitingKey = 0;
       const initialDeadline = context.now() + 5000, scheduled = new Set();
       const promise = new Promise((yes, no) => { resolve = yes; reject = no; });
       function cancel() { if (disposed) return; disposed = true; for (const key of scheduled) context.cancelScheduled(key); context.signal.removeEventListener('abort', cancel); reject(Error('reader-cancelled')); }
       function fail(reason) { reject(Error(reason)); context.fail(reason); cancel(); }
-      function delay() { const n = random(); if (!(n >= 0 && n < 1)) throw Error('invalid-reader-random'); return 400 + Math.floor(n * 501); }
+      function delay() { if(interval){const ms=interval();if(!Number.isSafeInteger(ms)||ms<0||ms>60000)throw Error('invalid-reader-interval');return ms;}const n = random(); if (!(n >= 0 && n < 1)) throw Error('invalid-reader-random'); return 400 + Math.floor(n * 501); }
       function sample() {
         if (disposed || !context.isCurrent()) return;
         let fresh; try { fresh = locateReader(context.task); } catch (error) { fail(error.message); return; }
@@ -50,12 +50,17 @@ export function createDocumentAdapter({ enabled = true, random = Math.random } =
           if (top === lastTop && range === lastRange) stuck++; else stuck = 0;
           if (stuck >= 3) { fail('reader-no-observed-movement'); return; }
           const n = random(); if (!(n >= 0 && n < 1)) { fail('invalid-reader-random'); return; }
-          viewer.scrollTop = Math.min(range, top + Math.max(1, Math.floor(viewer.clientHeight * (0.15 + n * 0.2))));
+          // User-developed readDocument adaptive trajectory, fork 351c08d:
+          // one 5000–7000ms sample, actual changing range, never platform credit.
+          const progress = Math.max(0, Math.min(1, (context.now() - traversalStart) / duration));
+          viewer.scrollTop = Math.min(range, Math.max(top, initialTop + progress * Math.max(0,range-initialTop)));
         }
         lastTop = top; lastRange = range;
       }
       const handle = Object.freeze({ cancel, activate() {
         if (disposed) return;
+        const draw=random();if(!(draw>=0&&draw<1)){fail('invalid-reader-random');return;}
+        duration=5000+Math.floor(draw*2001);traversalStart=context.now();initialTop=viewer.scrollTop;
         // Variable intervals under the same recurring scheduler, using fixed short
         // ticks and a local next deadline rather than unbounded one-shot history.
         let due = context.now(); const key = 'document-reader'; scheduled.add(key);

@@ -12,6 +12,7 @@ export function createCoordinator({ clock, adapters = {}, delayFor = () => 0, co
   const now = clock?.now || (() => Date.now());
   let inventory = null, records = [], generation = 0, stopped = false, destroyed = false;
   let active = null, navigation = null, diagnostic = 'no-inventory';
+  let deferred = new Set();
   const view = () => Object.freeze({ inventory, generation, stopped: stopped || destroyed,
     active: Boolean(active || navigation), diagnostic,
     records: Object.freeze(records.map(({ task, ...record }) => Object.freeze({ ...record, history: Object.freeze([...record.history]) }))) });
@@ -31,6 +32,7 @@ export function createCoordinator({ clock, adapters = {}, delayFor = () => 0, co
     if (destroyed) return false;
     inspectInventory(next); // Reject forged snapshots before replacing an owned context.
     invalidate('inventory-replaced'); inventory = next;
+    deferred = new Set();
     records = next.tasks.map(task => {
       const record = { task, key: task.key, kind: task.kind, state: State.DISCOVERED, history: [State.DISCOVERED] };
       transition(record, State.PENDING); return record;
@@ -77,10 +79,11 @@ export function createCoordinator({ clock, adapters = {}, delayFor = () => 0, co
     for (const candidate of records) {
       // Unknown boundaries are not erased even if an unrelated marker is positive.
       if (['unknown', 'assessment'].includes(candidate.kind)) {
+        if (candidate.kind === 'unknown' && deferred.has(candidate.key)) continue;
         if (candidate.state === State.PENDING) transition(candidate, State.UNSUPPORTED);
         diagnostic = candidate.task.recognition?.reason || 'unsupported-task-boundary'; return false;
       }
-      if (evaluation.taskConfirmed.includes(candidate.key) || candidate.state === State.WAITING_PLATFORM) continue;
+      if (evaluation.taskConfirmed.includes(candidate.key) || candidate.state === State.WAITING_PLATFORM || candidate.localProcessed) continue;
       if (candidate.state === State.UNRESOLVED && continueKnownAfterFailure) continue;
       if (candidate.state !== State.PENDING) { diagnostic = 'unresolved-task'; return false; }
       record = candidate; break;
@@ -197,6 +200,19 @@ export function createCoordinator({ clock, adapters = {}, delayFor = () => 0, co
     poll(); return true;
   }
   return Object.freeze({ bind, startNext, waitForMedia, snapshot: view, queueNavigation,
+    restorePartial(saved) {
+      if (!valid() || active || navigation) return false;
+      for (const record of records) {
+        if (saved.ended?.includes(record.key) && ['video','audio','document'].includes(record.kind)) record.localProcessed = true;
+        if (saved.deferred?.includes(record.key) && record.kind === 'unknown') deferred.add(record.key);
+      }
+      return true;
+    },
+    requestRuntime({key,delay,execute}) {
+      const expected=generation;if(stopped||destroyed)return false;
+      return scheduler.request({key:`${generation}:external:${key}`,delay,validate:()=>!stopped&&!destroyed&&generation===expected,execute});
+    },
+    cancelRuntime(key) { return scheduler.cancel(`${generation}:external:${key}`); },
     scheduleRuntime({ key, delay, execute }) {
       const expected = generation;
       if (stopped || destroyed) return false;

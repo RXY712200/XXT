@@ -100,3 +100,7 @@ Phase IV accepted at `3fc8021a7b51d0770fbf7931a0d2aa548213e3e1`.
 Phase V is pending independent review. Current implementation/evidence for all
 37 rows is classified in [RELEASE_READINESS.md](RELEASE_READINESS.md); historical
 row descriptions above remain requirements, not authenticated acceptance.
+
+F04/F05 targeted correction: initial/explicit objective activation share one
+bounded operation; Rescan preserves Stop; current video title/text recognition
+is consistent. Evidence is synthetic and controlled Chrome only.

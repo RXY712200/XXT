@@ -115,4 +115,17 @@ Collect sanitized evidence for blocked structures together, never private HTML.
 Separate proprietary knowledge-map geometry remains unverified; the ReadWeb marker
 identifies the evidenced book surface only, not universal knowledge-map support.
 Final checks: 81 PASS / 0 FAIL; syntax 36, imports 24; zero production dependencies.
-Current sole artifact SHA-256: ef4d94752d9f174fa8460381367a3dbf38b136a6e94591c1146b82e857f39c7b.
+Current sole artifact SHA-256: 81df4e2e79a9bd96e11c565ccea1f70fab38100117ff87dc5de79857015e826b.
+
+## Targeted objective/tab repair
+
+Shared initial and explicit objective operation handles safely identified loading
+content; repeated entry is deduplicated and Stop cancels acknowledgement. Explicit
+Rescan does not clear persisted Stop. Core resume permits a loading-only, empty,
+uniquely owned transition when explicitly requested; ordinary execution still
+requires verified inventory. Current title uses the same title/text fallback.
+Distinct labeled video tabs remain transitions, never click-as-completion.
+Three new regression cases exercise Start/Resume/Rescan, ambiguity/missing tabs,
+Stop/repeated activation and title decisions. Previous 81 tests unchanged.
+No isTrusted spoofing was used; pure title decisions are synthetic evidence,
+not a physical trusted-click end-to-end or authenticated platform claim.

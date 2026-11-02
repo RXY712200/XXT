@@ -207,9 +207,12 @@ export function createCoordinator({ clock, adapters = {}, delayFor = () => 0, co
     navigationDecision: mode => gate.issue(mode),
     stop() { if (!destroyed) { stopped = true; invalidate('explicit-stop', true); } },
     contextChanged() { if (!destroyed) invalidate('context-changed'); },
-    resume() {
-      if (destroyed || !inventory || !inspectInventory(inventory).valid) return false;
-      stopped = false; return bind(inventory);
+    resume({ allowLoading = false } = {}) {
+      if (destroyed || !inventory) return false;
+      const fresh = inspectInventory(inventory);
+      if (!fresh.valid && !(allowLoading && fresh.status === 'loading' && fresh.courseKey && fresh.lesson?.key &&
+        !fresh.tasks.length && fresh.hazards.every(code => code.startsWith('loading-')))) return false;
+      stopped = false; const bound = bind(inventory); return bound || allowLoading && fresh.status === 'loading';
     },
     destroy() { if (!destroyed) { destroyed = true; stopped = true; invalidate('destroyed'); } },
     actions: () => scheduler.snapshot()

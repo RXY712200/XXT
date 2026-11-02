@@ -53,3 +53,16 @@ content acknowledgement. F25 now identifies five explicit structures without
 execution. F31 rejects stale/unsafe UI credit. See FEATURE_GAP_CLOSURE.md for
 all 37 classifications and the consolidated acceptance checklist. Remaining
 proprietary reader/live and browser-policy limitations are unchanged.
+
+## Targeted objective/tab repair
+
+Shared initial and explicit objective operation handles safely identified loading
+content; repeated entry is deduplicated and Stop cancels acknowledgement. Explicit
+Rescan does not clear persisted Stop. Core resume permits a loading-only, empty,
+uniquely owned transition when explicitly requested; ordinary execution still
+requires verified inventory. Current title uses the same title/text fallback.
+Distinct labeled video tabs remain transitions, never click-as-completion.
+Three new regression cases exercise Start/Resume/Rescan, ambiguity/missing tabs,
+Stop/repeated activation and title decisions. Previous 81 tests unchanged.
+No isTrusted spoofing was used; pure title decisions are synthetic evidence,
+not a physical trusted-click end-to-end or authenticated platform claim.

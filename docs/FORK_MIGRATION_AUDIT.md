@@ -1,5 +1,33 @@
 # Fork migration audit — integrated follow-up / PARTIAL platform acceptance
 
+## Current reconciliation of restored local state and prior credit
+
+Reviewed baseline `8c246e433cc68ae626a8600e570486598e3875bd`. The three accepted
+state-consistency repairs remain. Browser mode selection previously included
+RESTORED_WAITING_PLATFORM as a reason to select completed mode. That mode requires
+individual task markers or current-generation ended, whereas a fresh identical
+credited lesson could use prior-credit. Persistence history was imposing an
+extra evidence requirement unsupported by the accepted whole-lesson contract.
+
+Only `runtime/browser.js` production logic changes: independently evaluated fresh
+positive whole-lesson credit selects prior-credit; local waiting presence does
+not select the evidence path. Gate, evaluator, private/expiring/single-use permits
+and fresh consumption/acknowledgement are unchanged. Contradictory/incomplete
+task evidence, unknown/assessment/verification, active media and unsafe targets
+still deny. No marker means no permission, regardless of stored local results.
+
+`tests/restored-credit.test.js` adds nine actual-runtime scenarios: fresh,
+restored and current-generation end with lesson-only credit; restored with both
+markers; absent marker/text only; contradictory/incomplete tasks; unknown,
+assessment, verification and active media; stale lesson/changed target during
+delay; Stop/reload. Positive handlers replace catalog/content and the native port
+independently acknowledges destination, with exactly one activation/no replay.
+The old state-consistency assertion now expects one navigation after markLesson(),
+not zero. Its uncredited wait, no replay, restored-state and Stop checks remain.
+All 116 earlier scenarios retained; 125 total pass. Native Chrome smoke remains
+controlled synthetic/native evidence, not authenticated platform acceptance.
+Canonical artifact hash/results are in HANDOFF. No new source reuse or privileges.
+
 ## Current state-consistency repair (supersedes affected boundaries below)
 
 Reviewed candidate `0a93c2b7e12c051c1e5920a76b2227843862b3a4`.
@@ -22,8 +50,9 @@ The migration is not restarted. Three integration defects are corrected:
   Unknown tasks remain unresolved and cannot authorize lesson departure.
 - **Restored local state:** `RESTORED_WAITING_PLATFORM` distinguishes persisted
   local-ended evidence from fresh PENDING and current-generation WAITING_PLATFORM.
-  No invented execution history. Runtime's completed-mode gate requires fresh own
-  task credit for restored records; the navigation gate/evaluator are unchanged.
+  No invented execution history. The initial runtime policy required fresh own
+  task credit for restored records; the reconciliation above supersedes that mode
+  choice while keeping the navigation gate/evaluator unchanged.
   Chinese status/local-result display remains separate from whole-lesson credit.
 
 New `tests/state-consistency.test.js` contains 12 actual-API/application tests;

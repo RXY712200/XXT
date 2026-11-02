@@ -1,6 +1,30 @@
 # XXT handoff — Phase V candidate
 
-## Current state-consistency correction
+## Current prior-credit reconciliation
+
+Baseline `8c246e433cc68ae626a8600e570486598e3875bd`; verify final HEAD against
+origin/main. One narrow runtime mode-selection correction, no new phase.
+Fresh positive whole-lesson evidence from the unchanged completion evaluator
+selects the unchanged prior-credit gate, irrespective of local history. Without
+that evidence the completed gate cannot advance. Optional assessment mode is
+unchanged. RESTORED_WAITING_PLATFORM remains distinct from this generation's
+genuine ended; neither local state authorizes credit. All three previous repairs,
+playback/readers/recovery/persistence/scheduler/navigation/UI remain preserved.
+The historical extra own-task-marker requirement below is superseded.
+
+125 PASS / 0 FAIL: all 116 scenarios retained, one erroneous zero-navigation
+assertion revised to one after positive lesson credit; nine new runtime tests.
+Positive cases independently acknowledge native destination without replay.
+Negative cases retain marker/counter/hazard/context/Stop boundaries. Syntax 46
+files, 28 production imports; zero production dependencies; native Chrome smoke
+and exact build/artifact verification pass. Source `D:\XXT\src\runtime\browser.js`.
+Sole installable `D:\XXT\dist\XXT.user.js`, SHA-256:
+`ea25429b159302cb51d477e6be79b28eb12527eeb4dba64d7856d2252ac35181`.
+Older artifact hashes/results below are historical. No companion/grant change,
+authenticated Chaoxing acceptance or stable release. Live trust/child binding and
+proprietary-reader dependencies remain. Stop after XXT/main delivery for review.
+
+## Accepted state-consistency correction (historical)
 
 Reviewed starting SHA `0a93c2b7e12c051c1e5920a76b2227843862b3a4`; final SHA is the
 commit containing this section. Verify HEAD against origin/main. This section

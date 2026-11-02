@@ -95,9 +95,9 @@ test('local-ended uncredited reconstruction and reload show restored waiting wit
   f.reload();await f.tick();assert.equal(f.app.view().taskState,'RESTORED_WAITING_PLATFORM');assert.equal(f.app.view().localDone,true);assert.equal(f.app.view().platformConfirmed,false);
   const status=f.document.querySelector('#xxt-control').shadowRoot.querySelector('#status').textContent;
   assert.match(status,/已恢复本地结束记录/);assert.match(status,/已处理，非平台完成/);assert.match(status,/平台信用：未确认/);
-  // Whole-lesson proof alone cannot convert durable local evidence into this
-  // generation's genuine-ended history; the unchanged gate requires own credit.
-  f.markLesson();await f.tick(1000);assert.equal(clicks,0);assert.equal(next.states[0].calls,0);
+  // Restored local evidence still cannot authorize navigation. Fresh independent
+  // whole-lesson proof may use the same prior-credit gate as a fresh page entry.
+  f.markLesson();await f.tick(1000);assert.equal(clicks,1);assert.equal(next.states[0].calls,0);
   f.app.stop();f.reload();await f.tick();assert.equal(next.states[0].calls,0);assert.match(f.app.view().message,/停止/);f.app.resume();await f.tick(0);assert.equal(f.app.view().taskState,'RESTORED_WAITING_PLATFORM');assert.equal(next.states[0].calls,0);f.close();
 });
 

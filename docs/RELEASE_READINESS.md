@@ -1,5 +1,30 @@
 # Readiness — DEVELOPMENT / TEST ONLY
 
+## Current prior-credit reconciliation
+
+Baseline `8c246e433cc68ae626a8600e570486598e3875bd`. Browser selection now follows
+independently evaluated positive whole-lesson credit, using the existing prior-credit
+gate equally for fresh and restored entry. Local completion never establishes
+credit; current/restored states stay distinct. Gate/evaluator and prior repairs
+are unchanged. All earlier own-marker/hazard/incomplete/Stop safeguards still apply
+where required by the existing gate; no extra marker is demanded just for history.
+
+`npm test`: **125 PASS / 0 FAIL**, 116 scenarios retained (one corrected
+lesson-credit navigation assertion), nine new actual-runtime regressions. Positive
+tests require current observed DOM markers, one native action and independently
+acknowledged new content. Negative tests cover absent marker, contradictory and
+incomplete attachment counts, unknown/verification/assessment, competing media,
+stale identity/changed target and Stop during delay. `npm run check`: 46 syntax
+files / 28 imports; `npm ls --omit=dev`: empty. Build, exact artifact verification
+and native Chrome smoke pass. SHA-256 of `D:\XXT\dist\XXT.user.js`:
+`ea25429b159302cb51d477e6be79b28eb12527eeb4dba64d7856d2252ac35181`.
+
+Native smoke exercises real generated-media policy/end, HTML bottom, iframe/storage,
+two-area UI and trusted tab input on controlled pages. It is not authenticated
+Chaoxing evidence. Trusted live transport/player binding and proprietary readers
+remain blocked; no companion, grant, release or stable compatibility claim.
+Older counts/hashes and the earlier stricter restored-mode policy below are historical.
+
 ## Current state-consistency repair
 
 Baseline `0a93c2b7e12c051c1e5920a76b2227843862b3a4`. Current automated result:

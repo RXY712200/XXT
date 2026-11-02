@@ -193,7 +193,9 @@ export function bootstrap(document, { clock, random = Math.random, storage, ui =
     }
     if (prefs.resting()) message = '周期休息中';
     else {
-      const decision = settings().navigation && !state.active ? c.navigationDecision(fresh.assessment === 'optional' ? 'assessment' : state.records.some(localWait) ? 'completed' : 'prior-credit') : null;
+      // Independent whole-lesson credit selects the accepted prior-credit path;
+      // neither restored nor current local-ended records establish that credit.
+      const decision = settings().navigation && !state.active ? c.navigationDecision(fresh.assessment === 'optional' ? 'assessment' : evaluateCompletion(snapshot).lessonConfirmed ? 'prior-credit' : 'completed') : null;
       if (decision?.allowed) {
         const target=fresh.catalog.find(t=>t.key===decision.permit.targetKey),category=decision.permit.mode==='assessment'?'assessment':target?.chapterKey!==fresh.lesson.chapterKey?'nextChapter':'nextLesson';
         c.queueNavigation(decision.permit, port, { delay: prefs.consumeRest()?0:sampleDelay(settings(),random,category), refresh: true }); log.add('navigation'); message = '等待已验证导航';

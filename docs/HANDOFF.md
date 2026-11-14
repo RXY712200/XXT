@@ -1,3 +1,36 @@
+## Current correction: 实验报告3 content recognition and dynamic startup
+
+Baseline af8109213cf7bb5dbe8d290d23d0c483be20f6d9. Owner confirmed prior
+recognition failed in authenticated Chaoxing. This candidate still requires retesting.
+The active course-card hierarchy now recognizes ordinary chapter-test/short-answer
+or upload-report instructions together with an editor/file interface and submission
+control. Exact editor class/button identity is no longer required (previous observed
+class combination remains supported). Answer fields/toolbars are normal assessment UI.
+Unfinished independent media still prevents handoff. Explicit exam/authentication
+and CAPTCHA evidence blocks. Unreadable marked attachment frames remain blocking;
+auxiliary editor iframe unreadability or reconstruction alone is not a task boundary.
+
+_run's existing _isChapterTest check now sees this content before choosing media
+startup waiting. _waitForStartup rechecks content and cleans up its wait, resets READY,
+then calls the existing _advanceChapterTest handoff. No second navigation path.
+The assessment authorization revalidates current classification, course, topology and
+course-card frame, plus existing lesson/route/generation/target guards. Equivalent
+editor/button rerendering does not revoke authorization solely for element replacement.
+Platform credit and media progress rules are unchanged; submission remains unfinished.
+
+Changed production methods: _uploadAssignment, _assessmentTarget,
+_externalNavigationEligible and _waitForStartup. Existing calls integrate without
+rewriting run/play/_advanceChapterTest/_queueNavigation/playCurrentIndex.
+All five essential commands pass; npm test: 21 passed / 0 failed. One new focused
+scenario uses 实验报告3, dynamically inserted 章节测验 + 简答题 + textarea + 保存/提交,
+then replaces the editor DOM during navigation delay: one native target activation,
+no changed platform task count. This is controlled jsdom/media/clock evidence only.
+Updated only affected provenance mappings/function hashes; outside-maintenance
+counts: 2805 nonempty / 2741 diff-added / 88 identical function entries.
+Artifact SHA-256: 28b68f20422d4d6a335a9d029532c24d26748ab961e7be7eda7f53547994137f.
+Reference checkout, inactive modules, metadata and optional bridge remain untouched.
+Stop after one XXT/main push for independent review. Historical notes follow.
+
 ## Current candidate: upload-assignment assessment handoff
 
 Starting HEAD: 1fa06c52c816508296d45a1bb6d408cd9baac717.

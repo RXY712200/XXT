@@ -1231,6 +1231,7 @@
                         (this._chapterOf(node) !== chapter && (!topology || this._catalogTopology() !== topology)))) {
                         cleanup(); return this._block('首次启动时课程任务已改变');
                     }
+                    if(this._uploadAssignment()){cleanup();this._state='READY';this._advanceChapterTest();return;}
                     const frame = videoAdapter.cardFrame(), doc = videoAdapter.cardDocument(), media = this._playableMedia();
                     if (catalog.status(node) === 'completed') {
                         cleanup(); this._state = 'READY';
@@ -1680,7 +1681,7 @@
                 return visit(videoAdapter.cardDocument(), 0);
             },
             _assessmentTarget(node) {
-                if (this._verificationPresent()) return null;
+                if (!this._uploadAssignment() && this._verificationPresent()) return null;
                 const entries = catalog.entries();
                 let index = entries.indexOf(node);
                 const upload = node===catalog.current() && this._uploadAssignment();
@@ -2126,7 +2127,7 @@
                 if (!record || this._isPlaying || !record.localDone || record.node !== catalog.current() ||
                     record.title !== this._currentStepTitle() || record.href !== window.location.href || record.generation !== this._generation || this._destroyed) return false;
                 if (record.kind === 'assessment') {
-                    if(record.upload){const current=this._uploadAssignment();if(!current||current.course!==record.upload.course||current.topology!==record.upload.topology||current.documents.length!==record.upload.documents.length||current.documents.some((doc,i)=>doc!==record.upload.documents[i])||current.submit!==record.upload.submit)return false;}
+                    if(record.upload){const current=this._uploadAssignment();if(!current||current.course!==record.upload.course||current.topology!==record.upload.topology||current.frame!==record.upload.frame)return false;}
                     return this._assessmentTarget(record.node) === target;
                 }
                 if (this._isChapterTest() || !this._taskContextValid(record) || this._targetAfter(record.node) !== target) return false;
@@ -2816,26 +2817,31 @@
             },
             _uploadAssignment() {
                 const root=videoAdapter.cardDocument(),node=catalog.current(),course=pacingCourse(window),topology=this._catalogTopology();
-                if(!root||!node?.id||!course||!topology||this._verificationPresent()||
-                    /考试|测验|测试|自测|验证|认证/.test(this._currentStepTitle()+' '+this._nodeTitle(node))||
+                if(!root||!node?.id||!course||!topology||/考试|验证|认证/.test(this._currentStepTitle()+' '+this._nodeTitle(node))||
                     [...document.querySelectorAll('[id]')].filter(el=>el.id===node.id).length!==1)return null;
-                const documents=[],matches=[];let unsafe=false;
+                const documents=[];let recognized=false,unsafe=false;
                 const visit=(doc,depth)=>{
-                    if(!doc||depth>4||documents.includes(doc)){unsafe=true;return;}documents.push(doc);
-                    if(doc.querySelector('[name^="answer"],input[type="password"],input[autocomplete="one-time-code"]'))unsafe=true;
-                    const submits=[...doc.querySelectorAll('a.btnSubmit')].filter(el=>/提交/.test(el.textContent));
-                    const recognized=doc.querySelector('.edui-for-attachment_new')&&doc.querySelector('.edui-for-tpupload')&&submits.length===1;
-                    if(recognized)matches.push(submits[0]);
+                    if(!doc||depth>4||documents.includes(doc))return;documents.push(doc);
+                    const body=doc.body?.cloneNode(true);
+                    body?.querySelectorAll('script,style,[hidden],[aria-hidden="true"]').forEach(el=>el.remove());
+                    const text=body?.textContent||'';
+                    if(doc.querySelector('input[type="password"],input[autocomplete="one-time-code"]')||/验证码|人脸识别|身份验证|期末考试|考试倒计时|考试剩余|captcha/i.test(text))unsafe=true;
+                    const editor=body?.querySelector('textarea,[contenteditable="true"],[name^="answer"],.edui-editor,.edui-for-attachment_new,.edui-for-tpupload,input[type="file"]');
+                    const submit=[...(body?.querySelectorAll('a,button,input[type="submit"]')||[])].some(el=>/提交/.test(el.textContent||el.getAttribute('value')||''));
+                    if(editor&&submit&&(/章节测验|简答题/.test(text)||/上传[\s\S]{0,100}(PDF|报告|文件)|(?:报告|文件)[\s\S]{0,100}上传/i.test(text)))recognized=true;
+                    if(body?.querySelector('.edui-for-attachment_new')&&body.querySelector('.edui-for-tpupload')&&submit)recognized=true;
                     for(const media of doc.querySelectorAll('video,audio')){
                         const auxiliary=['auditionAudio','audio1_html5_white'].includes(media.id)&&media.paused&&!media.seeking&&!media.autoplay;
                         if(!auxiliary&&(!media.ended||this._attachmentCredit(media)!=='platform-completed'))unsafe=true;
                     }
-                    const frames=[...doc.querySelectorAll('iframe')];
-                    if(!recognized&&!frames.length){const body=doc.body?.cloneNode(true);body?.querySelectorAll('script,style,audio').forEach(el=>el.remove());if(body?.textContent.trim()||body?.querySelector('input,form,object,embed,canvas,img'))unsafe=true;}
-                    for(const frame of frames)try{visit(frame.contentDocument,depth+1);}catch(_){unsafe=true;}
+                    for(const frame of doc.querySelectorAll('iframe'))try{
+                        const inner=frame.contentDocument;
+                        if(!inner&&frame.matches('.ans-attach-online'))unsafe=true;
+                        if(inner)visit(inner,depth+1);
+                    }catch(_){if(frame.matches('.ans-attach-online'))unsafe=true;}
                 };
                 visit(root,0);
-                return !unsafe&&matches.length===1?{course,topology,documents,submit:matches[0]}:null;
+                return !unsafe&&recognized?{course,topology,frame:videoAdapter.cardFrame()}:null;
             },
             _isChapterTest() {
                 return !!this._uploadAssignment() || assessmentTitle(this._currentStepTitle()) ||

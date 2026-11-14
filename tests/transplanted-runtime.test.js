@@ -8,7 +8,7 @@ import {coursePage} from './helpers/transplant-page.js';
 
 test('pinned provenance, exact developed fragments, complete single-engine build and permissions',()=>{
   const {summary,manifest,source,entry}=verifyTransplant();
-  assert.equal(summary.commits,59);assert.equal(summary.directlyPreservedDiffAddedNonemptyLines,2812);
+  assert.equal(summary.commits,59);assert.equal(summary.directlyPreservedDiffAddedNonemptyLines,2741);
   assert.equal(readFileSync(artifactPath,'utf8'),createArtifact());assert.match(verifyArtifact(),/^[a-f0-9]{64}$/);
   new Script(entry);new Script(createArtifact());
   const a=members(source),b=members(entry);
@@ -121,4 +121,16 @@ test('upload handoff requires the observed combination, leaves credit unfinished
    }else{assert.equal(p.app._externalCompletion?.deferred,undefined);assert.equal(p.clicks,0);}
   }finally{p.close();}
  }
+});
+
+test('实验报告3 dynamic short-answer assessment exits startup and survives editor rerender',async()=>{
+ const p=await coursePage({delayed:true});try{
+  p.doc.querySelector('.prev_title').title='实验报告3';p.doc.querySelector('#lesson-a .posCatalog_name').title='实验报告3';
+  await p.evaluate();assert.equal(p.app._state,'WAITING_STARTUP');
+  const content='<h2>章节测验</h2><h3>简答题（共1题）</h3><p>请上传PDF版本的实验报告</p><textarea name="answer1"></textarea><button>暂时保存</button><button>提交</button>';
+  p.inner.body.innerHTML=content;await p.advance(500);assert.equal(p.app._externalCompletion?.kind,'assessment');assert.notEqual(p.app._state,'WAITING_STARTUP');
+  p.inner.body.innerHTML=content;
+  for(let i=0;i<30&&!p.clicks;i++)await p.advance(500);
+  assert.equal(p.clicks,1,p.app._lastNotice);assert.equal(p.doc.querySelector('#lesson-a .jobUnfinishCount').value,'1');
+ }finally{p.close();}
 });

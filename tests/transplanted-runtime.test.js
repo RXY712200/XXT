@@ -8,7 +8,7 @@ import {coursePage} from './helpers/transplant-page.js';
 
 test('pinned provenance, exact developed fragments, complete single-engine build and permissions',()=>{
   const {summary,manifest,source,entry}=verifyTransplant();
-  assert.equal(summary.commits,59);assert.equal(summary.directlyPreservedDiffAddedNonemptyLines,2857);
+  assert.equal(summary.commits,59);assert.equal(summary.directlyPreservedDiffAddedNonemptyLines,2812);
   assert.equal(readFileSync(artifactPath,'utf8'),createArtifact());assert.match(verifyArtifact(),/^[a-f0-9]{64}$/);
   new Script(entry);new Script(createArtifact());
   const a=members(source),b=members(entry);
@@ -106,3 +106,19 @@ test('developed sequential-video selection is retained; unfinished second video 
   }finally{p.close();}
 });
 
+
+test('upload handoff requires the observed combination, leaves credit unfinished and navigates once',async()=>{
+ for(const mode of ['positive','generic','video','stale']){
+  const p=await coursePage();try{
+   if(mode!=='video')p.inner.body.replaceChildren();
+   p.inner.body.insertAdjacentHTML('beforeend',mode==='generic'?'<div class="attach-iframe edui-for-tpupload"></div>':'<div class="edui-for-attachment_new"></div><div class="edui-for-tpupload"></div><a class="btnSubmit">提交</a>');
+   await p.evaluate();await p.advance(500);
+   if(mode==='positive'||mode==='stale'){
+    assert.equal(p.app._externalCompletion?.deferred,'upload-assignment');assert.equal(p.doc.querySelector('#lesson-a .jobUnfinishCount').value,'1');assert.equal(p.doc.querySelector('#lesson-a .icon_Completed'),null);
+    if(mode==='stale')p.inner.querySelector('.btnSubmit').remove();
+    for(let i=0;i<30&&!p.clicks;i++)await p.advance(500);
+    assert.equal(p.clicks,mode==='positive'?1:0,p.app._lastNotice);
+   }else{assert.equal(p.app._externalCompletion?.deferred,undefined);assert.equal(p.clicks,0);}
+  }finally{p.close();}
+ }
+});

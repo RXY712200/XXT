@@ -1662,7 +1662,9 @@
                 if (this._verificationPresent()) return null;
                 const entries = catalog.entries();
                 let index = entries.indexOf(node);
-                if (index < 0 || !this._chapterOf(node) || !optionalAssessment(this._nodeTitle(node))) return null;
+                const upload = node===catalog.current() && this._uploadAssignment();
+                if (index < 0 || !this._chapterOf(node) || (!upload && !optionalAssessment(this._nodeTitle(node)))) return null;
+                if(upload)index++;
                 // Defer consecutive known assessments, never skip another learning leaf.
                 while (index < entries.length && optionalAssessment(this._nodeTitle(entries[index]))) {
                     if (entries[index].closest('[aria-disabled="true"], [disabled]')) return null;
@@ -2102,7 +2104,10 @@
                 if (record?.kind === 'document' && !this._taskContextValid(record)) return false;
                 if (!record || this._isPlaying || !record.localDone || record.node !== catalog.current() ||
                     record.title !== this._currentStepTitle() || record.href !== window.location.href || record.generation !== this._generation || this._destroyed) return false;
-                if (record.kind === 'assessment') return this._assessmentTarget(record.node) === target;
+                if (record.kind === 'assessment') {
+                    if(record.upload){const current=this._uploadAssignment();if(!current||current.course!==record.upload.course||current.topology!==record.upload.topology||current.documents.length!==record.upload.documents.length||current.documents.some((doc,i)=>doc!==record.upload.documents[i])||current.submit!==record.upload.submit)return false;}
+                    return this._assessmentTarget(record.node) === target;
+                }
                 if (this._isChapterTest() || !this._taskContextValid(record) || this._targetAfter(record.node) !== target) return false;
                 const media = this._playableMedia();
                 if (media.inaccessible || (media.unsupported && !media.localExecutionEligible) || (media.navigationSafe === false && !media.localExecutionEligible) || record.scope.tasks.some(task => !this._processedTasks.has(task.element))) return false;
@@ -2788,15 +2793,39 @@
                 const heading = document.querySelector('.prev_title');
                 return String(heading?.getAttribute('title') || heading?.textContent || '').trim();
             },
+            _uploadAssignment() {
+                const root=videoAdapter.cardDocument(),node=catalog.current(),course=pacingCourse(window),topology=this._catalogTopology();
+                if(!root||!node?.id||!course||!topology||this._verificationPresent()||
+                    /考试|测验|测试|自测|验证|认证/.test(this._currentStepTitle()+' '+this._nodeTitle(node))||
+                    [...document.querySelectorAll('[id]')].filter(el=>el.id===node.id).length!==1)return null;
+                const documents=[],matches=[];let unsafe=false;
+                const visit=(doc,depth)=>{
+                    if(!doc||depth>4||documents.includes(doc)){unsafe=true;return;}documents.push(doc);
+                    if(doc.querySelector('[name^="answer"],input[type="password"],input[autocomplete="one-time-code"]'))unsafe=true;
+                    const submits=[...doc.querySelectorAll('a.btnSubmit')].filter(el=>/提交/.test(el.textContent));
+                    const recognized=doc.querySelector('.edui-for-attachment_new')&&doc.querySelector('.edui-for-tpupload')&&submits.length===1;
+                    if(recognized)matches.push(submits[0]);
+                    for(const media of doc.querySelectorAll('video,audio')){
+                        const auxiliary=['auditionAudio','audio1_html5_white'].includes(media.id)&&media.paused&&!media.seeking&&!media.autoplay;
+                        if(!auxiliary&&(!media.ended||this._attachmentCredit(media)!=='platform-completed'))unsafe=true;
+                    }
+                    const frames=[...doc.querySelectorAll('iframe')];
+                    if(!recognized&&!frames.length){const body=doc.body?.cloneNode(true);body?.querySelectorAll('script,style,audio').forEach(el=>el.remove());if(body?.textContent.trim()||body?.querySelector('input,form,object,embed,canvas,img'))unsafe=true;}
+                    for(const frame of frames)try{visit(frame.contentDocument,depth+1);}catch(_){unsafe=true;}
+                };
+                visit(root,0);
+                return !unsafe&&matches.length===1?{course,topology,documents,submit:matches[0]}:null;
+            },
             _isChapterTest() {
-                return assessmentTitle(this._currentStepTitle()) ||
+                return !!this._uploadAssignment() || assessmentTitle(this._currentStepTitle()) ||
                     assessmentTitle(catalog.current()?.querySelector('.posCatalog_name')?.getAttribute('title') || '');
             },
             _advanceChapterTest() {
                 if (['NAVIGATION_COOLDOWN', 'WAITING_LIVE', 'READING_DOCUMENT', 'ADVANCING'].includes(this._state)) return;
                 const node = catalog.current();
+                const upload=this._uploadAssignment();
                 const target = node && this._assessmentTarget(node);
-                if (!target || !optionalAssessment(this._currentStepTitle())) {
+                if (!target || (!upload && !optionalAssessment(this._currentStepTitle()))) {
                     return this._block('测验、作业或验证内容无法安全跨章，不会自动提交或跳过');
                 }
                 this._cancelTasks();
@@ -2804,9 +2833,10 @@
                 this._detachVideoEvents();
                 this._completionNode = node;
                 this._completionVideo = null;
-                this._externalCompletion = { kind: 'assessment', localDone: true, node, generation: this._generation,
+                this._externalCompletion = { kind: 'assessment', localDone: true, ...(upload?{upload,deferred:'upload-assignment'}:{}), node, generation: this._generation,
                     title: this._currentStepTitle(), href: window.location.href };
                 this._state = 'READY_TO_ADVANCE';
+                if(upload)this._notify('识别到文件上传／作业提交任务；已暂缓上传任务，未提交文件，也未计入完成；该课节仍有未完成的提交任务，正在继续下一项学习内容');
                 this._queueNavigation(target);
             },
             _bindStepNavigation() {

@@ -1,3 +1,39 @@
+## Current candidate: upload-assignment assessment handoff
+
+Starting HEAD: 1fa06c52c816508296d45a1bb6d408cd9baac717.
+Read-only reference restored by full clone at D:\xuexitongScript-master; verified
+origin, branch, HEAD 351c08dc4d772908c3d098e8c9160be434bf1064, clean state,
+non-shallow history, upstream ancestor and three required source/build files.
+No reference edits, build, commit or push performed.
+
+Recognition requires both observed edui classes and exactly one a.btnSubmit with
+submission text in the same owned document. All accessible nested documents are
+accounted for; unknown populated leaves, unreadable branches, unfinished media,
+exam/answer and authentication evidence prevent recognition. Only one uniquely
+matched submission document is currently supported. Generic attach-iframe or
+editor upload control alone does not authorize navigation.
+
+Uses the EXISTING assessment handoff: _isChapterTest / _advanceChapterTest /
+_assessmentTarget / _externalNavigationEligible, then unchanged _queueNavigation
+and playCurrentIndex. The assessment record adds upload scope and deferred label;
+localDone is the existing handoff flag, NOT platform credit or upload completion.
+Before clicking, current course/catalog topology/documents/submit owner are checked
+again. Existing navigation settings, Stop, delays and destination checks apply.
+No upload/submit/answer interaction. No pacing completion count for the deferred item.
+A mixed lesson is only eligible once other media are ended AND independently credited;
+otherwise existing media behavior remains in control. Multiple submission documents
+and ambiguous unrelated structures remain unsupported; actual owner DOM may therefore
+still require refinement after authenticated testing.
+
+Checks: build, provenance audit, syntax/check, test (20 pass/0 fail), exact artifact
+verification. One added smoke case covers positive handoff, generic near-match,
+unfinished video and removed submission owner. Existing freeze expectation excludes
+only the authorized recognition/handoff methods and still freezes other production code.
+Conservative preserved counts: 2877 nonempty / 2812 diff-added / 89 identical entries.
+SHA-256: 00564399c33148f3ddcf0e551fda6431cba5fc2d45a25707d732947366693d48.
+Synthetic jsdom/media/clock evidence only. No real-browser acceptance claimed.
+Stop after one coherent XXT/main push for independent review. Older notes follow.
+
 ## Current correction: cross-lesson replay session lock
 
 Baseline: 30a3d2c9ff96bdfed289a1b391e3b7330ff374d1. Migration is complete;

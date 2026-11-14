@@ -11,8 +11,8 @@ test('natural ended needs observed progress and emits one terminal event',async(
 
 
 test('production outside GM lifecycle and native-open status stays frozen',()=>{
- const baseline=execFileSync('git',['show','30a3d2c9:src/entry.js'],{encoding:'utf8'});
- const strip=text=>{const map=members(text),ranges=['createGMLive','app._openNativeLink'].map(k=>map.get(k)).sort((a,b)=>b.start-a.start);for(const n of ranges)text=text.slice(0,n.start)+text.slice(n.end);return text};
+ const baseline=execFileSync('git',['show','1fa06c52:src/entry.js'],{encoding:'utf8'});
+ const strip=text=>{const extra=members(text).get('app._uploadAssignment');if(extra)text=text.slice(0,text.lastIndexOf('\n',extra.start))+text.slice(extra.end+1);const map=members(text),ranges=['createGMLive','app._openNativeLink','app._assessmentTarget','app._externalNavigationEligible','app._isChapterTest','app._advanceChapterTest'].map(k=>map.get(k)).filter(Boolean).sort((a,b)=>b.start-a.start);for(const n of ranges)text=text.slice(0,n.start)+text.slice(n.end+(text[n.end]===','?1:0));return text};
  assert.equal(strip(source.replaceAll('\r\n','\n')),strip(baseline));
  const request=text=>text.slice(text.indexOf('                const requestPlayback = async'),text.indexOf('                const finish =',text.indexOf('                const requestPlayback = async')));
  assert.equal(request(source),request(baseline));

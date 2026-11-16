@@ -1642,25 +1642,26 @@
             _nodeTitle(node) {
                 return node?.querySelector('.posCatalog_name')?.getAttribute('title') || node?.textContent.trim() || '';
             },
-            _verificationPresent() {
+            _verificationPresent(ignoreUnreadableEditors = false) {
                 const visit = (doc, depth) => {
-                    if (!doc || depth > 4) return true;
+                    if (!doc) return !ignoreUnreadableEditors;
+                    if (depth > 4) return true;
                     const visible = el => el.getClientRects().length && !el.closest('[hidden], [inert], [aria-hidden="true"]');
                     for (const el of doc.querySelectorAll('input[type=password], input[autocomplete="one-time-code"], form, button, [role=button]')) {
                         if (!visible(el)) continue;
                         if (el.matches('input[type=password], input[autocomplete="one-time-code"]') ||
                             (el.matches('form') && el.querySelector('input') && /验证码|captcha|人脸识别|身份验证/i.test(el.textContent)) ||
-                            (el.matches('button,[role=button]') && /^(开始人脸识别|进行身份验证|人脸认证)$/.test(el.textContent.trim()))) return true;
+                            (el.matches('button,[role=button]') && /^(开始人脸识别|进行身份验证|人脸认证|开始考试|正在考试|考试进行中)$/.test(el.textContent.trim()))) return true;
                     }
                     for (const frame of doc.querySelectorAll('iframe')) {
-                        try { if (visit(frame.contentDocument, depth + 1)) return true; } catch (_) { return true; }
+                        try { if ((!frame.contentDocument && frame.matches('.ans-attach-online')) || visit(frame.contentDocument, depth + 1)) return true; } catch (_) { if (!ignoreUnreadableEditors || frame.matches('.ans-attach-online')) return true; }
                     }
                     return false;
                 };
                 return visit(videoAdapter.cardDocument(), 0);
             },
             _assessmentTarget(node) {
-                if (!this._uploadAssignment() && this._verificationPresent()) return null;
+                if (this._verificationPresent(!!this._uploadAssignment())) return null;
                 const entries = catalog.entries();
                 let index = entries.indexOf(node);
                 const upload = node===catalog.current() && this._uploadAssignment();

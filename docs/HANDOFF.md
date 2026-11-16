@@ -1,3 +1,22 @@
+## Current minimal correction: explicit verification before assessment handoff
+
+Baseline abb0f9630ce704fe2b2c20a2a156c6a8cdf54438.
+_assessmentTarget now always invokes _verificationPresent. Its optional assessment-only
+mode tolerates unreadable auxiliary editor frames but still inspects all accessible
+documents for visible verification controls. Marked attachment unreadability and depth
+limits remain blocking. The default detector behavior remains conservative.
+Visible 人脸认证 and explicit active-exam buttons block even when report recognition
+succeeds. Recognition and dynamic startup handoff remain unchanged.
+Production changes are limited to _assessmentTarget and _verificationPresent.
+One new focused report/face-control regression confirms zero native navigation and
+unchanged unfinished count. Existing permissive report/rerender regression still passes.
+Five essential commands pass; npm test: 22 passed / 0 failed. Provenance updates cover
+only affected method hashes/ranges; conservative counts 2788 / 2724 / 87.
+Installable SHA-256: 4ebfe4fe6bfdf57321e6540ed793040ead3c08b46b3b93f23f05f6abe96843df.
+No reference fork, retired module, metadata or optional bridge changes. Controlled
+DOM validation is not authenticated browser acceptance. Stop after one XXT/main push.
+Historical notes follow.
+
 ## Current correction: 实验报告3 content recognition and dynamic startup
 
 Baseline af8109213cf7bb5dbe8d290d23d0c483be20f6d9. Owner confirmed prior

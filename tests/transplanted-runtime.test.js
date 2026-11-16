@@ -8,7 +8,7 @@ import {coursePage} from './helpers/transplant-page.js';
 
 test('pinned provenance, exact developed fragments, complete single-engine build and permissions',()=>{
   const {summary,manifest,source,entry}=verifyTransplant();
-  assert.equal(summary.commits,59);assert.equal(summary.directlyPreservedDiffAddedNonemptyLines,2741);
+  assert.equal(summary.commits,59);assert.equal(summary.directlyPreservedDiffAddedNonemptyLines,2724);
   assert.equal(readFileSync(artifactPath,'utf8'),createArtifact());assert.match(verifyArtifact(),/^[a-f0-9]{64}$/);
   new Script(entry);new Script(createArtifact());
   const a=members(source),b=members(entry);
@@ -132,5 +132,17 @@ test('实验报告3 dynamic short-answer assessment exits startup and survives e
   p.inner.body.innerHTML=content;
   for(let i=0;i<30&&!p.clicks;i++)await p.advance(500);
   assert.equal(p.clicks,1,p.app._lastNotice);assert.equal(p.doc.querySelector('#lesson-a .jobUnfinishCount').value,'1');
+ }finally{p.close();}
+});
+
+test('recognized report with visible 人脸认证 never authorizes assessment navigation',async()=>{
+ const p=await coursePage({delayed:true});try{
+  p.doc.querySelector('.prev_title').title='实验报告3';
+  p.inner.body.innerHTML='<h2>章节测验</h2><p>简答题：上传PDF报告</p><textarea name="answer1"></textarea><button>提交</button><button id="face">人脸认证</button>';
+  p.inner.querySelector('#face').getClientRects=()=>[{width:100,height:30}];
+  await p.evaluate();await p.advance(15000);
+  assert.ok(p.app._uploadAssignment(),'Ordinary report recognition remains permissive');
+  assert.equal(p.app._assessmentTarget(p.doc.querySelector('#lesson-a')),null);
+  assert.equal(p.clicks,0);assert.equal(p.doc.querySelector('#lesson-a .jobUnfinishCount').value,'1');
  }finally{p.close();}
 });

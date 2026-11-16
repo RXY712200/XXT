@@ -20,7 +20,7 @@
   "lineConvention": "LF split rows including the terminal empty row; ranges are one-based inclusive; offsets are UTF-16 JavaScript string offsets",
   "target": {
     "path": "src/entry.js",
-    "sha256": "4f80267eb23bf4d5b5c1698fe144937ad36de4dbe31980f81fe44a293a917a1b"
+    "sha256": "b3436d51cea03648420cb3aaf83a8a24003d06522716bc09814d13ff4b64cfe5"
   },
   "basis": "Owner expressly authorizes their developed additions. Compared complete pinned sources, all 59 commit deltas and surviving blame; diff-added is evidence, not proof of ownership. No extra copied-source attribution found in surviving developed subsystems. Inherited/mixed foundation bodies independently replaced; only API schema, grammar and standard calls may coincide. No clean-room/legal certainty claim.",
   "header": "// XXT: user-authorized V3 additions from RXY712200/xuexitongScript at 351c08dc4d772908c3d098e8c9160be434bf1064.\n// Independent replacement of the unlicensed upstream foundation; see provenance/transplant.json.\n// Not a clean-room or authenticated compatibility claim. Optional bridge is not bundled.\n",
@@ -28,8 +28,8 @@
     "commits": 59,
     "upstreamDeletedLines": 209,
     "forkAddedLines": 3087,
-    "exactNonemptyLinesOutsideAdaptations": 2805,
-    "addedExactNonemptyLinesOutsideAdaptations": 2741,
+    "exactNonemptyLinesOutsideAdaptations": 2788,
+    "addedExactNonemptyLinesOutsideAdaptations": 2724,
     "retainedInheritedLineNumbers": [
       1116,
       1117,
@@ -1002,7 +1002,7 @@
       "targetStart": 89505,
       "targetEnd": 95202,
       "sha256": "3d0ac1dbc8ee6ed476eefa1f9851b092debb151f758c537d8a2a0c7aec05d6bb",
-      "reason": "Authorized assessment-content recognition and dynamic startup recheck; existing assessment navigation handoff and completion gates retained"
+      "reason": "Authorized assessment recognition/startup and explicit verification boundary: visible authentication controls always block; unreadable auxiliary editor frames alone do not"
     },
     {
       "kind": "direct",
@@ -1019,56 +1019,73 @@
       "targetStart": 118627,
       "targetEnd": 120153,
       "sha256": "4cf87fca840bdf019ca47f2e760006f2243d7d8dd6eea6016e8791ed54890be4",
-      "reason": "Authorized assessment-content recognition and dynamic startup recheck; existing assessment navigation handoff and completion gates retained"
+      "reason": "Authorized assessment recognition/startup and explicit verification boundary: visible authentication controls always block; unreadable auxiliary editor frames alone do not"
     },
     {
       "kind": "direct",
       "sourceStart": 119733,
-      "sourceEnd": 131405,
+      "sourceEnd": 130200,
       "targetStart": 120153,
-      "targetEnd": 131825,
-      "sha256": "7ada42c521f2d41e092e26547aa36bc3116384c07cea85d8ec9313d647a5143b"
+      "targetEnd": 130620,
+      "sha256": "3a46f8eb4008ff4bc3da7cccc681de8311ba29ceee7b80ca048cf35af20c05fc"
+    },
+    {
+      "kind": "developed-maintenance",
+      "sourceStart": 130200,
+      "sourceEnd": 131391,
+      "targetStart": 130620,
+      "targetEnd": 132049,
+      "sha256": "047b6a58b488f3541182f82501e7133fef99e75650399f0bf2f0bf3bbf9c9002",
+      "reason": "Authorized assessment recognition/startup and explicit verification boundary: visible authentication controls always block; unreadable auxiliary editor frames alone do not"
+    },
+    {
+      "kind": "direct",
+      "sourceStart": 131391,
+      "sourceEnd": 131405,
+      "targetStart": 132049,
+      "targetEnd": 132063,
+      "sha256": "3c9de0755a7eadb53a265ade37a17e11f98c9d19f3300802a8b2cf7c9cf18346"
     },
     {
       "kind": "developed-maintenance",
       "sourceStart": 131405,
       "sourceEnd": 132475,
-      "targetStart": 131825,
-      "targetEnd": 133057,
-      "sha256": "8954f39199a33e6fe3a33326e9abc983d76d255c4875191e05a7ac8da811708b",
-      "reason": "Authorized assessment-content recognition and dynamic startup recheck; existing assessment navigation handoff and completion gates retained"
+      "targetStart": 132063,
+      "targetEnd": 133292,
+      "sha256": "cc82e8d8240d5e989d64ce9ff4de183ce648c940cb01476bed7e997cd4aceec6",
+      "reason": "Authorized assessment recognition/startup and explicit verification boundary: visible authentication controls always block; unreadable auxiliary editor frames alone do not"
     },
     {
       "kind": "direct",
       "sourceStart": 132475,
       "sourceEnd": 166799,
-      "targetStart": 133057,
-      "targetEnd": 167381,
+      "targetStart": 133292,
+      "targetEnd": 167616,
       "sha256": "4d0df0b3da446bc540865b752f37f7e9d5d57bd4846966a2af6f5f12fb9b3b7a"
     },
     {
       "kind": "developed-maintenance",
       "sourceStart": 166799,
       "sourceEnd": 168209,
-      "targetStart": 167381,
-      "targetEnd": 169054,
+      "targetStart": 167616,
+      "targetEnd": 169289,
       "sha256": "6a36ed1f3cb0486ffb6a3be9414759afffc5b97e807369bb9363c502051cfc9f",
-      "reason": "Authorized assessment-content recognition and dynamic startup recheck; existing assessment navigation handoff and completion gates retained"
+      "reason": "Authorized assessment recognition/startup and explicit verification boundary: visible authentication controls always block; unreadable auxiliary editor frames alone do not"
     },
     {
       "kind": "direct",
       "sourceStart": 168209,
       "sourceEnd": 183513,
-      "targetStart": 169054,
-      "targetEnd": 184358,
+      "targetStart": 169289,
+      "targetEnd": 184593,
       "sha256": "6edb1d68a0ca1bc322dd335e24a41e488ee2a6845bef748e51c93427bf833562"
     },
     {
       "kind": "foundation-adaptation",
       "sourceStart": 183513,
       "sourceEnd": 183715,
-      "targetStart": 184358,
-      "targetEnd": 184491,
+      "targetStart": 184593,
+      "targetEnd": 184726,
       "sha256": "6b6302f9d2ca13950057374e3ed66e146a7d6833b500ae85abd377764eea12dd",
       "reason": "E: independent timer disposal"
     },
@@ -1076,16 +1093,16 @@
       "kind": "direct",
       "sourceStart": 183715,
       "sourceEnd": 183729,
-      "targetStart": 184491,
-      "targetEnd": 184505,
+      "targetStart": 184726,
+      "targetEnd": 184740,
       "sha256": "3c9de0755a7eadb53a265ade37a17e11f98c9d19f3300802a8b2cf7c9cf18346"
     },
     {
       "kind": "foundation-adaptation",
       "sourceStart": 183729,
       "sourceEnd": 184325,
-      "targetStart": 184505,
-      "targetEnd": 185038,
+      "targetStart": 184740,
+      "targetEnd": 185273,
       "sha256": "a8b229e40207d233f1f4d516444d5f47543ebce5603fe82e6b493c98fed15ff9",
       "reason": "E: independent monitor timer; authored partial-task start kept verbatim"
     },
@@ -1093,16 +1110,16 @@
       "kind": "direct",
       "sourceStart": 184325,
       "sourceEnd": 184339,
-      "targetStart": 185038,
-      "targetEnd": 185052,
+      "targetStart": 185273,
+      "targetEnd": 185287,
       "sha256": "3c9de0755a7eadb53a265ade37a17e11f98c9d19f3300802a8b2cf7c9cf18346"
     },
     {
       "kind": "foundation-adaptation",
       "sourceStart": 184339,
       "sourceEnd": 185630,
-      "targetStart": 185052,
-      "targetEnd": 186226,
+      "targetStart": 185287,
+      "targetEnd": 186461,
       "sha256": "c10083d990091e6ee137fd6c25f4667c3c0d2669c6735f0a3b9675fa0ceaf0a1",
       "reason": "E: independent immediate resume/cooldown and muted retry; authored context/audio/end guards kept verbatim"
     },
@@ -1110,16 +1127,16 @@
       "kind": "direct",
       "sourceStart": 185630,
       "sourceEnd": 185644,
-      "targetStart": 186226,
-      "targetEnd": 186240,
+      "targetStart": 186461,
+      "targetEnd": 186475,
       "sha256": "3c9de0755a7eadb53a265ade37a17e11f98c9d19f3300802a8b2cf7c9cf18346"
     },
     {
       "kind": "foundation-adaptation",
       "sourceStart": 185644,
       "sourceEnd": 187291,
-      "targetStart": 186240,
-      "targetEnd": 187251,
+      "targetStart": 186475,
+      "targetEnd": 187486,
       "sha256": "7b372a275e11897eb322e82553396f17aee3dd486e401de53ee3b46507fdb529",
       "reason": "E: independent pause/stall sampling; authored ended-to-completion gate retained"
     },
@@ -1127,16 +1144,16 @@
       "kind": "direct",
       "sourceStart": 187291,
       "sourceEnd": 187293,
-      "targetStart": 187251,
-      "targetEnd": 187253,
+      "targetStart": 187486,
+      "targetEnd": 187488,
       "sha256": "beadba836315747fc95ae304452514b72fe122a6e345974638d70c4e8ebace6a"
     },
     {
       "kind": "foundation-adaptation",
       "sourceStart": 187293,
       "sourceEnd": 187561,
-      "targetStart": 187253,
-      "targetEnd": 187461,
+      "targetStart": 187488,
+      "targetEnd": 187696,
       "sha256": "7a783889d87214dbb8ba9cef8abe8eda7a31c3b5e242b390ce37c95472b749b0",
       "reason": "E/G: compatibility fields, no executable upstream body"
     },
@@ -1144,16 +1161,16 @@
       "kind": "direct",
       "sourceStart": 187561,
       "sourceEnd": 217866,
-      "targetStart": 187461,
-      "targetEnd": 217766,
+      "targetStart": 187696,
+      "targetEnd": 218001,
       "sha256": "393c866eac29e27ab0119efdf150e2fa62b89065fd8b8375b75b1db5acf7192b"
     },
     {
       "kind": "foundation-adaptation",
       "sourceStart": 217866,
       "sourceEnd": 217955,
-      "targetStart": 217766,
-      "targetEnd": 217835,
+      "targetStart": 218001,
+      "targetEnd": 218070,
       "sha256": "ca195711a240aa8ceef905bffc360d4b1db26b42c7a9899150a6e7da2e318ea7",
       "reason": "D: replace inherited playback log"
     },
@@ -1161,16 +1178,16 @@
       "kind": "direct",
       "sourceStart": 217955,
       "sourceEnd": 218377,
-      "targetStart": 217835,
-      "targetEnd": 218257,
+      "targetStart": 218070,
+      "targetEnd": 218492,
       "sha256": "10fcc3b2b4b09e662250385babbf69e019e39fbe20692c9dd7c225e42f3ca269"
     },
     {
       "kind": "foundation-adaptation",
       "sourceStart": 218377,
       "sourceEnd": 218437,
-      "targetStart": 218257,
-      "targetEnd": 218320,
+      "targetStart": 218492,
+      "targetEnd": 218555,
       "sha256": "7dbda2fe40c1b88e4539a8d22af082662aae881e89b3050a71a1510a249ef1a8",
       "reason": "D: replace inherited playback failure log"
     },
@@ -1178,16 +1195,16 @@
       "kind": "direct",
       "sourceStart": 218437,
       "sourceEnd": 218882,
-      "targetStart": 218320,
-      "targetEnd": 218765,
+      "targetStart": 218555,
+      "targetEnd": 219000,
       "sha256": "a8d868b476e0c8ef968173747e6b5dd63b29dc9a302bf117abef6438771a8488"
     },
     {
       "kind": "foundation-adaptation",
       "sourceStart": 218882,
       "sourceEnd": 218979,
-      "targetStart": 218765,
-      "targetEnd": 218823,
+      "targetStart": 219000,
+      "targetEnd": 219058,
       "sha256": "d3bed9c089f19182ec2bbacd04c61dc0a902a56faae70e503e8bbcca4b58d1e3",
       "reason": "D: replace inherited retry failure log"
     },
@@ -1195,16 +1212,16 @@
       "kind": "direct",
       "sourceStart": 218979,
       "sourceEnd": 219127,
-      "targetStart": 218823,
-      "targetEnd": 218971,
+      "targetStart": 219058,
+      "targetEnd": 219206,
       "sha256": "acf0efbb75296e0d87a7775963d8686f8c20ed834622aedf7ae988b6ac49e2fe"
     },
     {
       "kind": "foundation-adaptation",
       "sourceStart": 219127,
       "sourceEnd": 219272,
-      "targetStart": 218971,
-      "targetEnd": 219065,
+      "targetStart": 219206,
+      "targetEnd": 219300,
       "sha256": "dfc762e2486edd1534d11da3c0ecd6c952ae3e8758d180dcf578ffa5c5b41d8e",
       "reason": "D: replace inherited retry presentation"
     },
@@ -1212,16 +1229,16 @@
       "kind": "direct",
       "sourceStart": 219272,
       "sourceEnd": 220199,
-      "targetStart": 219065,
-      "targetEnd": 219992,
+      "targetStart": 219300,
+      "targetEnd": 220227,
       "sha256": "ad24e40d1f1441b531ad74bf7133e9349bfcd75af3e6757c5b0831a8f8b87dda"
     },
     {
       "kind": "foundation-adaptation",
       "sourceStart": 220199,
       "sourceEnd": 220415,
-      "targetStart": 219992,
-      "targetEnd": 220198,
+      "targetStart": 220227,
+      "targetEnd": 220433,
       "sha256": "ab19e44a6782eff203495588b574a3191a8bcfae8eb5297af947f3a9aa7cbc8e",
       "reason": "G: independent native title/text fallback"
     },
@@ -1229,16 +1246,16 @@
       "kind": "direct",
       "sourceStart": 220415,
       "sourceEnd": 220429,
-      "targetStart": 220198,
-      "targetEnd": 220212,
+      "targetStart": 220433,
+      "targetEnd": 220447,
       "sha256": "3c9de0755a7eadb53a265ade37a17e11f98c9d19f3300802a8b2cf7c9cf18346"
     },
     {
       "kind": "developed-maintenance",
       "sourceStart": 220429,
       "sourceEnd": 220649,
-      "targetStart": 220212,
-      "targetEnd": 222994,
+      "targetStart": 220447,
+      "targetEnd": 223229,
       "sha256": "094cfd698f1dd2f4f1366876c237d3a39f12310b17febc59d9850597bc575d40",
       "reason": "30a3d2c9: bounded cross-lesson orphan reconciliation, exact child release and refused-open state; prior child autoplay fix retained"
     },
@@ -1246,16 +1263,16 @@
       "kind": "direct",
       "sourceStart": 220649,
       "sourceEnd": 220663,
-      "targetStart": 222994,
-      "targetEnd": 223008,
+      "targetStart": 223229,
+      "targetEnd": 223243,
       "sha256": "3c9de0755a7eadb53a265ade37a17e11f98c9d19f3300802a8b2cf7c9cf18346"
     },
     {
       "kind": "developed-maintenance",
       "sourceStart": 220663,
       "sourceEnd": 221619,
-      "targetStart": 223008,
-      "targetEnd": 224191,
+      "targetStart": 223243,
+      "targetEnd": 224426,
       "sha256": "299137b7ae825802375ee3131173f2b9284818b6d418560e31b5806b100263af",
       "reason": "30a3d2c9: bounded cross-lesson orphan reconciliation, exact child release and refused-open state; prior child autoplay fix retained"
     },
@@ -1263,16 +1280,16 @@
       "kind": "direct",
       "sourceStart": 221619,
       "sourceEnd": 221633,
-      "targetStart": 224191,
-      "targetEnd": 224205,
+      "targetStart": 224426,
+      "targetEnd": 224440,
       "sha256": "3c9de0755a7eadb53a265ade37a17e11f98c9d19f3300802a8b2cf7c9cf18346"
     },
     {
       "kind": "foundation-adaptation",
       "sourceStart": 221633,
       "sourceEnd": 222912,
-      "targetStart": 224205,
-      "targetEnd": 225231,
+      "targetStart": 224440,
+      "targetEnd": 225466,
       "sha256": "d49033c3c6032bd9b311a1ea3b5aeafc03cb84ae621514fac2717816be03d698",
       "reason": "G: independent delegated binding, retains authored catalog bind/cancellation/LOADING/reset and scheduled reentry"
     },
@@ -1280,16 +1297,16 @@
       "kind": "direct",
       "sourceStart": 222912,
       "sourceEnd": 227453,
-      "targetStart": 225231,
-      "targetEnd": 229772,
+      "targetStart": 225466,
+      "targetEnd": 230007,
       "sha256": "2429fb3551ded6abced29f439bf65720b63f92ae2c8d5eb134712f207357ae4b"
     },
     {
       "kind": "foundation-adaptation",
       "sourceStart": 227453,
       "sourceEnd": 229632,
-      "targetStart": 229772,
-      "targetEnd": 231481,
+      "targetStart": 230007,
+      "targetEnd": 231716,
       "sha256": "8426e7cd12b325efe590199d7e37c3165fd0be5a4f65f27bca9f77b612cf7f5f",
       "reason": "D: independent muted video fallback/bounded retry; authored audio dispatch, identity/ended/terminal block and scheduler retained"
     },
@@ -1297,16 +1314,16 @@
       "kind": "direct",
       "sourceStart": 229632,
       "sourceEnd": 236144,
-      "targetStart": 231481,
-      "targetEnd": 237993,
+      "targetStart": 231716,
+      "targetEnd": 238228,
       "sha256": "7cb9c6a5fd7943fa2dd4278568b6570501d93d9cd5b4127eb46c52eb10a3b2a8"
     },
     {
       "kind": "foundation-adaptation",
       "sourceStart": 236144,
       "sourceEnd": 236502,
-      "targetStart": 237993,
-      "targetEnd": 238251,
+      "targetStart": 238228,
+      "targetEnd": 238486,
       "sha256": "8ab4db872934ba2969dee42d93c8252aa2039a48fec014ff1099cec3d709a57d",
       "reason": "B: independent native catalog lookup, same jQuery return interface"
     },
@@ -1314,16 +1331,16 @@
       "kind": "direct",
       "sourceStart": 236502,
       "sourceEnd": 237901,
-      "targetStart": 238251,
-      "targetEnd": 239650,
+      "targetStart": 238486,
+      "targetEnd": 239885,
       "sha256": "9f7045bf48a07e9349d5d2037d33c84e54130fc28cba3cd264af7f73557989bf"
     },
     {
       "kind": "foundation-adaptation",
       "sourceStart": 237901,
       "sourceEnd": 239070,
-      "targetStart": 239650,
-      "targetEnd": 240485,
+      "targetStart": 239885,
+      "targetEnd": 240720,
       "sha256": "09faf545f2ab20354d3ff57732970728317ff9b90285bc82e989af99e1782754",
       "reason": "F: independent event-table attachment; authored fixed-speed handler retained"
     },
@@ -1331,16 +1348,16 @@
       "kind": "direct",
       "sourceStart": 239070,
       "sourceEnd": 239084,
-      "targetStart": 240485,
-      "targetEnd": 240499,
+      "targetStart": 240720,
+      "targetEnd": 240734,
       "sha256": "3c9de0755a7eadb53a265ade37a17e11f98c9d19f3300802a8b2cf7c9cf18346"
     },
     {
       "kind": "foundation-adaptation",
       "sourceStart": 239084,
       "sourceEnd": 239801,
-      "targetStart": 240499,
-      "targetEnd": 240850,
+      "targetStart": 240734,
+      "targetEnd": 241085,
       "sha256": "0fc58569676e21dc9d30242e9d0a61f162ca8eaa8aeb67fee89f2105054c78e6",
       "reason": "F: independent symmetric event disposal"
     },
@@ -1348,16 +1365,16 @@
       "kind": "direct",
       "sourceStart": 239801,
       "sourceEnd": 239913,
-      "targetStart": 240850,
-      "targetEnd": 240962,
+      "targetStart": 241085,
+      "targetEnd": 241197,
       "sha256": "3fc19041e1dafc84a3302b8711f61a3c0c9e1b1a3807e7c9325e7f96915f014a"
     },
     {
       "kind": "foundation-adaptation",
       "sourceStart": 239913,
       "sourceEnd": 240149,
-      "targetStart": 240962,
-      "targetEnd": 241075,
+      "targetStart": 241197,
+      "targetEnd": 241310,
       "sha256": "5cbd2e8b460b741e02e991bc8e7b71b0f710599ee06899177d4ed8828f99f540",
       "reason": "F: independent metadata-to-play hook, authored play validates ownership"
     },
@@ -1365,16 +1382,16 @@
       "kind": "direct",
       "sourceStart": 240149,
       "sourceEnd": 240163,
-      "targetStart": 241075,
-      "targetEnd": 241089,
+      "targetStart": 241310,
+      "targetEnd": 241324,
       "sha256": "3c9de0755a7eadb53a265ade37a17e11f98c9d19f3300802a8b2cf7c9cf18346"
     },
     {
       "kind": "foundation-adaptation",
       "sourceStart": 240163,
       "sourceEnd": 240802,
-      "targetStart": 241089,
-      "targetEnd": 241519,
+      "targetStart": 241324,
+      "targetEnd": 241754,
       "sha256": "a7ef3eed8dc14d895d4bcc1e733847c46e1a24cb6dca30b6b26621fc42302d39",
       "reason": "F: independent event bookkeeping with unchanged public fields"
     },
@@ -1382,16 +1399,16 @@
       "kind": "direct",
       "sourceStart": 240802,
       "sourceEnd": 240816,
-      "targetStart": 241519,
-      "targetEnd": 241533,
+      "targetStart": 241754,
+      "targetEnd": 241768,
       "sha256": "3c9de0755a7eadb53a265ade37a17e11f98c9d19f3300802a8b2cf7c9cf18346"
     },
     {
       "kind": "foundation-adaptation",
       "sourceStart": 240816,
       "sourceEnd": 240933,
-      "targetStart": 241533,
-      "targetEnd": 241615,
+      "targetStart": 241768,
+      "targetEnd": 241850,
       "sha256": "43dffc02c0bafc725815fe8a5bff9d761c54f7b5f33ed3fbc2bf6625da8b35ea",
       "reason": "F: independent pause notice; pause recovery remains monitor-owned"
     },
@@ -1399,16 +1416,16 @@
       "kind": "direct",
       "sourceStart": 240933,
       "sourceEnd": 240947,
-      "targetStart": 241615,
-      "targetEnd": 241629,
+      "targetStart": 241850,
+      "targetEnd": 241864,
       "sha256": "3c9de0755a7eadb53a265ade37a17e11f98c9d19f3300802a8b2cf7c9cf18346"
     },
     {
       "kind": "foundation-adaptation",
       "sourceStart": 240947,
       "sourceEnd": 241711,
-      "targetStart": 241629,
-      "targetEnd": 242266,
+      "targetStart": 241864,
+      "targetEnd": 242501,
       "sha256": "ec7eec43f9494577df0bcea463aec45fcc838184a9494232b1b309d825917378",
       "reason": "H: independent idempotent focus guards with same event/options and immediate recovery hook"
     },
@@ -1416,16 +1433,16 @@
       "kind": "direct",
       "sourceStart": 241711,
       "sourceEnd": 242349,
-      "targetStart": 242266,
-      "targetEnd": 242904,
+      "targetStart": 242501,
+      "targetEnd": 243139,
       "sha256": "99b404cd01bca8e6c617eb02d3fbd0c8e4509896a18294b0f5003d0a5f1d8865"
     },
     {
       "kind": "foundation-adaptation",
       "sourceStart": 242349,
       "sourceEnd": 243274,
-      "targetStart": 242904,
-      "targetEnd": 243251,
+      "targetStart": 243139,
+      "targetEnd": 243486,
       "sha256": "cc817244460a3e6bfd89461ed1794e2cf9622e53dbc0b1f586b9888bd39998a3",
       "reason": "H: independent foundational cleanup; authored disposal head kept verbatim"
     },
@@ -1433,16 +1450,16 @@
       "kind": "direct",
       "sourceStart": 243274,
       "sourceEnd": 248158,
-      "targetStart": 243251,
-      "targetEnd": 248135,
+      "targetStart": 243486,
+      "targetEnd": 248370,
       "sha256": "99b266eb694746b53d6af9dbf1738c599f7c2ac853fb3ded64f9f67b269c1a3b"
     },
     {
       "kind": "foundation-adaptation",
       "sourceStart": 248158,
       "sourceEnd": 248307,
-      "targetStart": 248135,
-      "targetEnd": 248192,
+      "targetStart": 248370,
+      "targetEnd": 248427,
       "sha256": "9b755eac9b282a6491ef3741b67a220f29b7d758621726cc3f8ad8a2c5b99889",
       "reason": "A: replace inherited initialization error presentation"
     },
@@ -1450,16 +1467,16 @@
       "kind": "direct",
       "sourceStart": 248307,
       "sourceEnd": 248438,
-      "targetStart": 248192,
-      "targetEnd": 248323,
+      "targetStart": 248427,
+      "targetEnd": 248558,
       "sha256": "7bbbcb34ce7d7a7489be601047475ea4451e7be85e87d33a22caade74ffe29eb"
     },
     {
       "kind": "developed-maintenance",
       "sourceStart": 248438,
       "sourceEnd": 263388,
-      "targetStart": 248323,
-      "targetEnd": 269252,
+      "targetStart": 248558,
+      "targetEnd": 269487,
       "sha256": "d6989826447cfe5f40d012888d17e729c70efc3c9b16ecded927c593d001cfe6",
       "reason": "30a3d2c9: bounded cross-lesson orphan reconciliation, exact child release and refused-open state; prior child autoplay fix retained"
     },
@@ -1467,8 +1484,8 @@
       "kind": "direct",
       "sourceStart": 263388,
       "sourceEnd": 263454,
-      "targetStart": 269252,
-      "targetEnd": 269318,
+      "targetStart": 269487,
+      "targetEnd": 269553,
       "sha256": "02de3ce36d2822def2f844d56c0ca9be3de8c8752152599c3303e6cb2d9fe935"
     }
   ],
@@ -1840,7 +1857,7 @@
       "classification": "D-mixed-or-user-replaced",
       "disposition": "foundation-adapted",
       "forkSha256": "4083e96c21a237fe3126dc40ec6af8219c007a14d75a6a665e42818a9d90e1e4",
-      "targetSha256": "7b93944e5126409830b6738f1832c83afebc036b254585dcf1a81860d74c0678",
+      "targetSha256": "4ad803b12eeb6eb2f6ce0cb88263b6deae76092ef5d7f11545a57da292575dfc",
       "survivingCommitOrigins": [
         "9cdfa9306d7367f40f9124c754d05e7644778ae3",
         "995fd1e958dd6e20a85545293b03465802e76cb0",
@@ -2372,9 +2389,9 @@
       ],
       "upstreamLines": null,
       "classification": "C-user-developed-candidate",
-      "disposition": "byte-identical",
+      "disposition": "developed-maintenance",
       "forkSha256": "3e68afa2bd2f8c03508b35b8a6c4f2145a06ce4e22cf89a5c13dd36a2dc0af19",
-      "targetSha256": "3e68afa2bd2f8c03508b35b8a6c4f2145a06ce4e22cf89a5c13dd36a2dc0af19",
+      "targetSha256": "047b6a58b488f3541182f82501e7133fef99e75650399f0bf2f0bf3bbf9c9002",
       "survivingCommitOrigins": [
         "64900befe4ffa90effc8333077dcb7677ac4a8e6",
         "1dea94de55226f7841348bde3cdd119b2fd6eef8"
@@ -2390,7 +2407,7 @@
       "classification": "C-user-developed-candidate",
       "disposition": "developed-maintenance",
       "forkSha256": "02533b6f183bb0c99978c9203a09dfe57adb58218d5406005d1252604c2a00fe",
-      "targetSha256": "8954f39199a33e6fe3a33326e9abc983d76d255c4875191e05a7ac8da811708b",
+      "targetSha256": "cc82e8d8240d5e989d64ce9ff4de183ce648c940cb01476bed7e997cd4aceec6",
       "survivingCommitOrigins": [
         "64900befe4ffa90effc8333077dcb7677ac4a8e6",
         "58a252a6eb935b1cc249fe7944b5758d2675b7be"

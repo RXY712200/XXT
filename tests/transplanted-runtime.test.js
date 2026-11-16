@@ -8,7 +8,7 @@ import {coursePage} from './helpers/transplant-page.js';
 
 test('pinned provenance, exact developed fragments, complete single-engine build and permissions',()=>{
   const {summary,manifest,source,entry}=verifyTransplant();
-  assert.equal(summary.commits,59);assert.equal(summary.directlyPreservedDiffAddedNonemptyLines,2724);
+  assert.equal(summary.commits,59);assert.equal(summary.directlyPreservedDiffAddedNonemptyLines,2708);
   assert.equal(readFileSync(artifactPath,'utf8'),createArtifact());assert.match(verifyArtifact(),/^[a-f0-9]{64}$/);
   new Script(entry);new Script(createArtifact());
   const a=members(source),b=members(entry);
@@ -144,5 +144,21 @@ test('recognized report with visible 人脸认证 never authorizes assessment na
   assert.ok(p.app._uploadAssignment(),'Ordinary report recognition remains permissive');
   assert.equal(p.app._assessmentTarget(p.doc.querySelector('#lesson-a')),null);
   assert.equal(p.clicks,0);assert.equal(p.doc.querySelector('#lesson-a .jobUnfinishCount').value,'1');
+ }finally{p.close();}
+});
+
+test('ended sibling permits bounded recovery onto a fresh unfinished player; Stop remains authoritative',async()=>{
+ const p=await coursePage();try{
+  const old=p.player('video','second_video_html5_api');await p.evaluate();await p.advance(2000);
+  p.players[0].end();await p.advance(500);
+  old.element.remove();const replacement=p.player('video','second_video_html5_api');
+  p.app._actions.cancelAll('frame-replaced');await p.flush();
+  for(let i=0;i<30&&!replacement.state.calls;i++)await p.advance(500);
+  assert.equal(replacement.state.calls,1,p.app._lastNotice);assert.equal(old.state.calls,0);
+  assert.equal(p.app._videoEl,replacement.element);assert.equal(p.app._completedVideos.has(replacement.element),false);assert.equal(p.clicks,0);
+  old.end();assert.equal(p.app._completedVideos.has(replacement.element),false);
+  p.app._recovery.markExplicitStop();p.app.stopAutomation();
+  assert.equal(p.app._recovery.requestRecovery('frame-replaced'),false);
+  const calls=replacement.state.calls;await p.advance(2000);assert.equal(replacement.state.calls,calls);assert.equal(p.clicks,0);
  }finally{p.close();}
 });

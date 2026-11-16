@@ -3176,19 +3176,25 @@
         };
         let recoverySample = null;
         const recoverySafe = () => {
-            const media = app._playableMedia();
+            const snapshot=app._attachmentSnapshot;
+            let media;
+            try { app._attachmentSnapshot=null; media=app._playableMedia(); }
+            finally { app._attachmentSnapshot=snapshot; }
             return !!recoveryIdentity() && !app._destroyed && !app._isPlaying && !app._documentController && !app._liveController &&
                 !['WAITING_LIVE','READING_DOCUMENT','VERIFYING_COMPLETION','VERIFYING_PLATFORM_COMPLETION','NAVIGATION_COOLDOWN','ADVANCING','FINISHED'].includes(app._state) &&
                 !app._pacing.getStatus().restEndsAt && !media.unsupported && !media.inaccessible && media.navigationSafe !== false &&
                 !app._verificationPresent() && !app._isChapterTest() && !gmLive?.retryBlocked(app) &&
-                media.videos.every(el => el.paused && !el.seeking && !el.ended);
+                media.videos.every(el => el.isConnected && !el.seeking && (el.ended || el.paused));
         };
         app._recovery = createUnattendedRecoveryCoordinator(window, {
             identity: recoveryIdentity, safe: recoverySafe,
             fingerprint: () => JSON.stringify([location.href, app._nodeTitle(catalog.current()), app._catalogTopology(), app._chapterOf(catalog.current())?.id || '', videoAdapter.cardFrame()?.id || '']),
             canReload: () => recoverySafe() && !app._entryCredit && !app._externalCompletion && !app._platformCompletion,
             notice: text => app._notify(text), fail: reason => app._block(reason),
-            retry: stage => { if (stage === 1) { app._state = 'READY'; app.play(); } else app.run({ startup: true }); },
+            retry: stage => { if (stage === 1) {
+                app._detachVideoEvents(); app._videoEl=null; app._videoContext=null; app._attachmentSnapshot=null;
+                app._state = 'READY'; app.play();
+            } else app.run({ startup: true }); },
             progress: () => !app._recovery.getStatus().attempts,
         });
         app._recoveryProgressTimer = setInterval(() => {

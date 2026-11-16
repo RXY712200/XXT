@@ -1,3 +1,31 @@
+## Current correction: bounded multi-video recovery
+
+Baseline 82ca42e0d66335058aa1c9b7e7420f9afe6e39c1. Owner reported authenticated
+multi-video interruption and later terminal recovery notices. The exact original
+DOM invalidation event has NOT been reproduced.
+Only initializePlayer's recoverySafe closure and stage-one recovery retry hook change.
+Eligibility temporarily rediscoveries without the previous attachment snapshot, restores
+that snapshot after the check, and accepts connected ended siblings alongside paused
+unfinished media. Seeking/playing tasks, unsafe inventory, identity/security checks,
+recovery budgets, explicit Stop and terminal exhaustion remain authoritative.
+After the existing coordinator approves its bounded same-lesson retry, old event
+bindings/player/context/snapshot are cleared and ordinary play discovery reacquires
+current media. No local-ended WeakSet entry or platform credit moves to a replacement.
+_completeVideo, _continueCompleted, _getVideoEl, _refreshVideoContext, _runAction,
+action scheduler and recovery coordinator bodies remain unchanged.
+
+One focused actual-app simulated case completes A, replaces pending B, invalidates
+its action and recovers into the fresh B once; old B cannot complete the replacement,
+no catalog navigation occurs, and explicit Stop rejects further recovery.
+All five essential checks pass; npm test: 23 passed / 0 failed. These are controlled
+DOM/media/clock results, not authenticated acceptance or proof of the original event.
+Only the affected authored hook span and containing initializePlayer provenance hash
+changed; conservative counts 2772 nonempty / 2708 diff-added / 87 identical entries.
+Installable SHA-256: e17671e738ae798b77302434820499204089e6fbd2a4369ec317ec124b9e8026.
+Reference fork, inactive modules, metadata, optional bridge and other course behavior
+are untouched. Stop after one coherent XXT/main push for owner retesting and review.
+Historical notes follow.
+
 ## Current minimal correction: explicit verification before assessment handoff
 
 Baseline abb0f9630ce704fe2b2c20a2a156c6a8cdf54438.

@@ -8,11 +8,11 @@ import {coursePage} from './helpers/transplant-page.js';
 
 test('pinned provenance, exact developed fragments, complete single-engine build and permissions',()=>{
   const {summary,manifest,source,entry}=verifyTransplant();
-  assert.equal(summary.commits,59);assert.equal(summary.directlyPreservedDiffAddedNonemptyLines,2708);
+  assert.equal(summary.commits,59);assert.equal(summary.directlyPreservedDiffAddedNonemptyLines,2589);
   assert.equal(readFileSync(artifactPath,'utf8'),createArtifact());assert.match(verifyArtifact(),/^[a-f0-9]{64}$/);
   new Script(entry);new Script(createArtifact());
   const a=members(source),b=members(entry);
-  for(const name of ['createTaskSupport','createLessonPlan','createActionScheduler','createTaskPacingCoordinator','createUnattendedRecoveryCoordinator',
+  for(const name of ['createTaskSupport','createLessonPlan','createActionScheduler','createTaskPacingCoordinator',
     'app._completeVideo','app._continueCompleted','app._queueNavigation','app._priorCompletionValid','app._checkPriorCompletion','app._audioPlayRejected',
     'app._audioExhausted','app._mountSettingsPanel','app._mountNoticePanel','app._block','app.stopAutomation','app._getVideoEl','app.playCurrentIndex']) {
     assert.equal(entry.slice(b.get(name).start,b.get(name).end),source.slice(a.get(name).start,a.get(name).end),name);
@@ -160,5 +160,18 @@ test('ended sibling permits bounded recovery onto a fresh unfinished player; Sto
   p.app._recovery.markExplicitStop();p.app.stopAutomation();
   assert.equal(p.app._recovery.requestRecovery('frame-replaced'),false);
   const calls=replacement.state.calls;await p.advance(2000);assert.equal(replacement.state.calls,calls);assert.equal(p.clicks,0);
+ }finally{p.close();}
+});
+
+test('recovery causes distinguish cancellation, terminal block and legacy unknown with explicit resume',async()=>{
+ const p=await coursePage();try{
+  await p.evaluate();await p.advance(2000);
+  for(const reason of ['navigation','user-interaction']){p.app._recovery.cancel(reason);assert.notEqual(p.app._recovery.getStatus().stage,'terminal');assert.equal(p.app._recovery.getStatus().reason,reason);}
+  p.app._block('synthetic unsafe inventory');assert.equal(p.app._recovery.getStatus().reason,'application-block');assert.equal(p.app._recovery.requestRecovery('frame-replaced'),false);
+  const key='xuexitong.v3.unattended-recovery.v1';const saved=JSON.parse(p.w.sessionStorage.getItem(key));saved.reason='';saved.attempts=0;saved.stopped=false;p.w.sessionStorage.setItem(key,JSON.stringify(saved));
+  p.players[0].state.paused=true;const count=p.players[0].state.calls;await p.evaluate();await p.advance(2000);
+  assert.equal(p.app._recovery.getStatus().reason,'legacy-unknown');assert.equal(p.players[0].state.calls,count);
+  p.app._recovery.resumeExplicitly();p.app.run({startup:true});await p.advance(2000);assert.ok(p.players[0].state.calls>count);
+  p.app._recovery.markExplicitStop();assert.equal(p.app._recovery.getStatus().reason,'explicit-stop');assert.equal(p.app._recovery.requestRecovery('context-stale'),false);
  }finally{p.close();}
 });

@@ -1,3 +1,41 @@
+## Current correction: recovery cancellation and terminal diagnostics
+
+Baseline 7a275a872fec636e03b6eab94019f8dbea60f6b0, verified local/remote clean.
+Owner observed terminal/attempts=0/empty reason/stopped=false on a nine-video lesson.
+The original browser cancellation event remains unknown; no authenticated fix claim.
+
+Changed createUnattendedRecoveryCoordinator restore/cancel/finish/markExplicitStop,
+app._runAction onCancel and _recoveryEntryAllowed notice only. No new scheduler.
+Terminal application blocks record application-block; budget exhaustion records
+recovery-exhausted; unsafe reload/context finish uses reload-not-safe or
+recovery-context-invalid. Invalid stored records report invalid-recovery-record.
+Reason codes contain no URLs, account fields, DOM text or exception payloads.
+Nested cleanup preserves an existing terminal reason. Explicit Stop retains its
+stopped flag and explicit-stop cause; genuine terminal decisions still deny auto entry.
+Legacy terminal empty reasons become legacy-unknown in restored status, remain
+terminal, and can be reset only through the existing explicit resume control.
+
+Navigation/user-interaction/page-unload cancellations cancel timers and pause the
+action without terminalizing the lesson. Attempts/reload budgets are retained.
+Same-lesson context-stale/frame-replaced still first request existing bounded
+recovery. If currently ineligible, the action pauses with an accurate context notice,
+not a generic _block that creates an empty permanent terminal record.
+Real _block continues to terminate; no global terminal clearing or suppression.
+Previous fresh-player recovery hook and all media/completion/recognition/assessment/
+document/GM implementations remain untouched.
+
+Five essential checks pass. npm test: 24 passed / 0 failed. One added actual-app
+scenario checks navigation/interaction reasons, genuine terminal block, legacy
+reinjection denial, explicit resume and Stop. Existing replacement/no-false-credit,
+unsafe verification and report/GM regressions pass. Controlled DOM/media/timer
+evidence does not reproduce the original authenticated mutation or prove acceptance.
+Provenance records the three authorized authored function changes, preserving all
+other exact comparisons; counts 2653 nonempty / 2589 diff-added / 84 identical entries.
+Installable SHA-256: 188e998a82c6c5dea94bc7fb1bfce7d9b6a577e9e7d4d2a4f5e5871ac1882f58.
+Reference fork, inactive modules, metadata and optional bridge remain unchanged.
+Stop after one XXT/main push for independent review and owner browser testing.
+Historical notes follow.
+
 ## Current correction: bounded multi-video recovery
 
 Baseline 82ca42e0d66335058aa1c9b7e7420f9afe6e39c1. Owner reported authenticated

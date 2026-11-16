@@ -464,12 +464,24 @@
                     !['idle','waiting','observing','reload','terminal'].includes(state.stage)) throw Error();
                 if (id && state.identity !== id) state = { ...fresh(id), stopped: state.stopped };
                 if (state.stage === 'waiting' && timer === null) state.stage = 'observing';
-            } catch (_) { state = { ...fresh(id), stopped: true, stage: 'terminal' }; }
+            } catch (_) { state = { ...fresh(id), stopped: true, stage: 'terminal', reason:'invalid-recovery-record' }; }
+            if(state.stage==='terminal'&&!state.reason)state.reason='legacy-unknown';
             return state;
         };
         restore();
-        const cancel = reason => { if (timer !== null) env.clearTimeout(timer); timer = null; if (['terminal-block','navigation','user-interaction'].includes(reason)) { state.stage = 'terminal'; persist(); } };
-        const finish = reason => { cancel(); state.stage = 'terminal'; state.reason = reason; persist(); hooks.fail(reason); };
+        const cancel = reason => {
+            if (timer !== null) env.clearTimeout(timer); timer = null;
+            if(state.stage==='terminal')return;
+            if(reason==='terminal-block'){state.stage='terminal';state.reason='application-block';persist();}
+            else if(['navigation','page-unload','user-interaction','explicit-stop','feature-disabled','context-stale','frame-replaced'].includes(reason)){
+                state.stage='idle';state.reason=reason;persist();
+            }
+        };
+        const finish = reason => {
+            cancel(); state.stage='terminal';
+            state.reason=/连续恢复失败/.test(reason)?'recovery-exhausted':/安全刷新/.test(reason)?'reload-not-safe':'recovery-context-invalid';
+            persist(); hooks.fail(reason);
+        };
         const requestRecovery = reason => {
             if (disposed || state.stopped || state.stage === 'terminal') return false;
             if (!identity() || identity() !== state.identity || !['context-stale','frame-replaced','readiness'].includes(reason) || !hooks.safe()) return false;
@@ -500,7 +512,7 @@
         return { restore, requestRecovery, classifyFailure: reason => ['context-stale','frame-replaced','readiness'].includes(reason) && hooks.safe(),
             cancel, dispose() { disposed = true; cancel(); }, getStatus: () => ({ ...state }),
             confirmProgress() { if (!disposed && !state.stopped && state.stage !== 'terminal' && state.attempts && identity() && identity() === state.identity) { cancel(); state = fresh(identity()); persist(); } },
-            markExplicitStop() { cancel(); state.stopped = true; persist(); },
+            markExplicitStop() { cancel(); state.stopped = true; state.reason='explicit-stop'; persist(); },
             resumeExplicitly() { cancel(); state = fresh(identity()); persist(); },
             observe,
         };
@@ -1131,7 +1143,7 @@
                 const status = this._recovery.restore();
                 if (!status.stopped && status.stage !== 'terminal') return true;
                 this.stopAutomation();
-                this._notify(status.stopped ? '用户已停止自动操作，请明确重新自动检测' : '当前小节自动恢复已终止；不会再次尝试，请手动重新检测');
+                this._notify(status.stopped ? '用户已停止自动操作，请明确重新自动检测' : `当前小节自动恢复已终止（${status.reason}）；不会再次尝试，请手动重新检测`);
                 return false;
             },
             _partialPauseApplies() {
@@ -1350,14 +1362,13 @@
                         if (['user-interaction','navigation','page-unload','feature-disabled','explicit-stop'].includes(reason)) this._recovery?.cancel(reason);
                         if (this._destroyed || ['BLOCKED', 'ADVANCING'].includes(this._state)) return;
                         if (['context-stale','frame-replaced'].includes(reason) && this._recovery?.requestRecovery(reason)) { this._state = 'RECOVERING'; return; }
-                        if (['user', 'stale','user-interaction','context-stale','frame-replaced','navigation','page-unload'].includes(reason)) this._block(key === 'navigation' ? (this._navigationFailure || '导航已被用户操作或页面切换取消') : '自动动作上下文已变化');
-                        else {
-                            if (this._isPlaying) return;
-                            this._documentController?.cancel(); this._documentController = null;
-                            this._liveController?.dispose(); this._liveController = null;
-                            this._state = 'PAUSED_AUTOMATION'; this._playPending = false;
-                            this._notify('自动动作已取消；请明确重新检测后继续');
-                        }
+                        if (['user', 'stale','user-interaction','context-stale','frame-replaced','navigation','page-unload'].includes(reason)) this._recovery?.cancel(reason);
+                        if (this._isPlaying) return;
+                        this._documentController?.cancel(); this._documentController = null;
+                        this._liveController?.dispose(); this._liveController = null;
+                        this._state = 'PAUSED_AUTOMATION'; this._playPending = false;
+                        this._notify(['context-stale','frame-replaced'].includes(reason)?'当前媒体上下文暂不满足安全恢复条件，已暂停；未认定任务完成，请重新检测':
+                            '自动动作已取消；请明确重新检测后继续');
                     },
                     watch: cancel => {
                         const observer = new MutationObserver(() => { if (!valid()) cancel('context-stale'); });
